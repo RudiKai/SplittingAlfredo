@@ -24,7 +24,7 @@ inline uint FNV1a32(const string s)
    return h;
 }
 
-void LogBlockOncePerBar(const string reason_tag, const int reason_code /*=0*/)
+void LogBlockOncePerBar(const string reason_tag, const int reason_code = 0)
 {
   datetime curBar = iTime(_Symbol, SignalTimeframe, 0);
   if(curBar == 0) { PrintFormat("%s reason=%s", AAI_BLOCK_LOG, reason_tag); return; }
