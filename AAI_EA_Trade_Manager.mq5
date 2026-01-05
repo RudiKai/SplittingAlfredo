@@ -14,7 +14,7 @@
 #include <Trade\Trade.mqh>
 #include <Arrays\ArrayObj.mqh>
 #include <Arrays\ArrayLong.mqh>
-#include <AAI/AAI_Include_News.mqh>
+#include <AAI/AAI_Include_News.mqh>          //// this is still to be built...
 
 // --- Forward Declarations (needed because used before defined) ---
 void   PHW_LogFailure(const uint retcode);
@@ -382,6 +382,8 @@ enum ENUM_OSR_FillMode { OSR_FILL_IOC, OSR_FILL_FOK, OSR_FILL_DEFAULT };
 const string HUD_OBJECT_NAME = "AAI_HUD";
 #include "inc/AAI_Utils.mqh"
 
+
+#include "inc/AAI_EvaluateEntry.mqh"
 
 
 // Subfolders under MQL5/Files (no trailing backslash)
@@ -4162,7 +4164,6 @@ void AAI_RegimeStats_OnExit(const ulong pos_id, const double net)
 //| OnTick: Event-driven logic                                       |
 //+------------------------------------------------------------------+
 void EvaluateClosedBar();
-void LogBlockOncePerBar(const string reason_tag, const int reason_code = 0);
 
 void OnTick()
 {
