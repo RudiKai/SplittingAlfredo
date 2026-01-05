@@ -4,7 +4,6 @@
 //+------------------------------------------------------------------+
 //| >>> T025 REFACTOR: Main evaluation flow for a closed bar <<<     |
 //+------------------------------------------------------------------+
-void LogBlockOncePerBar(const string reason_tag, const int reason_code = 0);
 
 void EvaluateClosedBar()
 {
