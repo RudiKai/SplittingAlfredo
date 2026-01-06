@@ -1595,10 +1595,7 @@ double AAI_PlaybookMinConfDelta(const AAI_Context &ctx)
    return (pb.minconf_delta_mode + pb.minconf_delta_regime + pb.minconf_delta_scenario);
   }
 
-// --- Block log dedupe (once per bar per reason)
-datetime g_lastBlockBarTime = 0;
-string   g_lastBlockReason  = "";
-int      g_lastBlockCode    = -1;
+
 
 // --- AAI metrics (lightweight) ---
 double g_aai_net = 0.0, g_aai_gross_pos = 0.0, g_aai_gross_neg = 0.0;
