@@ -40,16 +40,17 @@ inline bool Read1(int h,int b,int shift,double &out,const string id)
 
 void LogBlockOncePerBar(const string reason_tag, const int reason_code = 0)
 {
-  // Prefer the same closed-bar timestamp your decision pipeline uses
+  static datetime lastBarTime = 0;
+  static string   lastReason  = "";
+  static int      lastCode    = -1;
+
   datetime barTime = 0;
 
-  // If SB cache is valid, this is the “truth” bar for your gates/entry logic
   if(g_sb.valid && g_sb.closed_bar_time > 0)
     barTime = g_sb.closed_bar_time;
 
-  // Fallbacks (still safe if called outside EvaluateClosedBar pipeline)
-  if(barTime == 0) barTime = iTime(_Symbol, SignalTimeframe, 1); // last CLOSED bar
-  if(barTime == 0) barTime = iTime(_Symbol, SignalTimeframe, 0); // forming bar as last resort
+  if(barTime == 0) barTime = iTime(_Symbol, SignalTimeframe, 1);
+  if(barTime == 0) barTime = iTime(_Symbol, SignalTimeframe, 0);
 
   if(barTime == 0)
   {
@@ -57,15 +58,16 @@ void LogBlockOncePerBar(const string reason_tag, const int reason_code = 0)
     return;
   }
 
-  if(barTime == g_lastBlockBarTime && reason_tag == g_lastBlockReason && reason_code == g_lastBlockCode)
+  if(barTime == lastBarTime && reason_tag == lastReason && reason_code == lastCode)
     return;
 
-  g_lastBlockBarTime = barTime;
-  g_lastBlockReason  = reason_tag;
-  g_lastBlockCode    = reason_code;
+  lastBarTime = barTime;
+  lastReason  = reason_tag;
+  lastCode    = reason_code;
 
   PrintFormat("%s reason=%s", AAI_BLOCK_LOG, reason_tag);
 }
+
 
 // Fallback for printing ZE gate nicely
 string ZE_GateToStr(int gate)
