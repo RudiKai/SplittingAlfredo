@@ -383,7 +383,6 @@ const string HUD_OBJECT_NAME = "AAI_HUD";
 #include "inc/AAI_Utils.mqh"
 
 
-#include "inc/AAI_EvaluateEntry.mqh"
 
 
 // Subfolders under MQL5/Files (no trailing backslash)
@@ -2025,25 +2024,25 @@ if(g_sb.valid && g_sb.closed_bar_time == t)
   // Read all 7 buffers for sb_shift in one shot
   double v;
   // Signal
-  if(!Read1(sb_handle, 0, sb_shift, v, "SB")) { g_sb.valid=false; return false; }
+  if(!Read1(sb_handle, 0, sb_shift, v, "SB_SIG")) { g_sb.valid=false; return false; }
   g_sb.sig = (int)MathRound(v);
   // Confidence
-  if(!Read1(sb_handle, 1, sb_shift, v, "SB")) { g_sb.valid=false; return false; }
+  if(!Read1(sb_handle, 1, sb_shift, v, "SB_CONF")) { g_sb.valid=false; return false; }
   g_sb.conf = v;
   // Reason
-  if(!Read1(sb_handle, 2, sb_shift, v, "SB")) { g_sb.valid=false; return false; }
+  if(!Read1(sb_handle, 2, sb_shift, v, "SB_REASON")) { g_sb.valid=false; return false; }
   g_sb.reason = (int)MathRound(v);
   // ZE
-  if(!Read1(sb_handle, 3, sb_shift, v, "SB")) { g_sb.valid=false; return false; }
+  if(!Read1(sb_handle, 3, sb_shift, v, "SB_ZE")) { g_sb.valid=false; return false; }
   g_sb.ze = v;
   // SMC signal
-  if(!Read1(sb_handle, 4, sb_shift, v, "SB")) { g_sb.valid=false; return false; }
+  if(!Read1(sb_handle, 4, sb_shift, v, "SB_SMC_SIG")) { g_sb.valid=false; return false; }
   g_sb.smc_sig = (int)MathRound(v);
   // SMC conf
-  if(!Read1(sb_handle, 5, sb_shift, v, "SB")) { g_sb.valid=false; return false; }
+  if(!Read1(sb_handle, 5, sb_shift, v, "SB_SMC_CONF")) { g_sb.valid=false; return false; }
   g_sb.smc_conf = v;
   // BC
-  if(!Read1(sb_handle, 6, sb_shift, v, "SB")) { g_sb.valid=false; return false; }
+  if(!Read1(sb_handle, 6, sb_shift, v, "SB_BC")) { g_sb.valid=false; return false; }
   g_sb.bc = (int)MathRound(v);
 
   g_sb.closed_bar_time = t;
