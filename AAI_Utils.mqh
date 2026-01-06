@@ -6,16 +6,6 @@
 #define AAI_UTILS_DEFINED
 
 
-
-
-// TICKET #2: New defensive read helper
-inline bool Read1(int h,int b,int shift,double &out,const string id){
-   double v[1]; if(CopyBuffer(h,b,shift,1,v)==1){ out=v[0]; return true; }
-   static datetime lastWarn=0; datetime bt=iTime(_Symbol,(ENUM_TIMEFRAMES)SignalTimeframe,shift);
-   if(bt!=lastWarn){ PrintFormat("[%s_READFAIL] t=%s",id,TimeToString(bt,TIME_DATE|TIME_SECONDS)); lastWarn=bt; }
-   return false;
-}
-
 // T043: FNV-1a 32-bit string hasher
 inline uint FNV1a32(const string s)
 {
@@ -24,15 +14,53 @@ inline uint FNV1a32(const string s)
    return h;
 }
 
+// TICKET #2: New defensive read helper (per-id throttling)
+inline bool Read1(int h,int b,int shift,double &out,const string id)
+{
+   double v[1];
+   if(CopyBuffer(h,b,shift,1,v) == 1)
+   {
+      out = v[0];
+      return true;
+   }
+
+   // throttle warnings per "id" (hash to a small table)
+   static datetime lastWarnSlot[32]; // auto-zeroed
+   const int slot = (int)(FNV1a32(id) & 31);
+
+   datetime bt = iTime(_Symbol, (ENUM_TIMEFRAMES)SignalTimeframe, shift);
+   if(bt != lastWarnSlot[slot])
+   {
+      PrintFormat("[%s_READFAIL] t=%s", id, TimeToString(bt, TIME_DATE|TIME_SECONDS));
+      lastWarnSlot[slot] = bt;
+   }
+   return false;
+}
+
+
 void LogBlockOncePerBar(const string reason_tag, const int reason_code = 0)
 {
-  datetime curBar = iTime(_Symbol, SignalTimeframe, 0);
-  if(curBar == 0) { PrintFormat("%s reason=%s", AAI_BLOCK_LOG, reason_tag); return; }
+  // Prefer the same closed-bar timestamp your decision pipeline uses
+  datetime barTime = 0;
 
-  if(curBar == g_lastBlockBarTime && reason_tag == g_lastBlockReason && reason_code == g_lastBlockCode)
+  // If SB cache is valid, this is the “truth” bar for your gates/entry logic
+  if(g_sb.valid && g_sb.closed_bar_time > 0)
+    barTime = g_sb.closed_bar_time;
+
+  // Fallbacks (still safe if called outside EvaluateClosedBar pipeline)
+  if(barTime == 0) barTime = iTime(_Symbol, SignalTimeframe, 1); // last CLOSED bar
+  if(barTime == 0) barTime = iTime(_Symbol, SignalTimeframe, 0); // forming bar as last resort
+
+  if(barTime == 0)
+  {
+    PrintFormat("%s reason=%s", AAI_BLOCK_LOG, reason_tag);
+    return;
+  }
+
+  if(barTime == g_lastBlockBarTime && reason_tag == g_lastBlockReason && reason_code == g_lastBlockCode)
     return;
 
-  g_lastBlockBarTime = curBar;
+  g_lastBlockBarTime = barTime;
   g_lastBlockReason  = reason_tag;
   g_lastBlockCode    = reason_code;
 
