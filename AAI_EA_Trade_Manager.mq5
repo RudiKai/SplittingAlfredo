@@ -751,6 +751,7 @@ input double InpSB_ConflictPenalty = 0.80;
 input bool InpSB_DynWeights_Enable = true;  
 
 
+
 // --- All Pass-Through Inputs for the new SignalBrain ---
 input group "SignalBrain Pass-Through Inputs";
 // Core SB Settings
@@ -768,6 +769,7 @@ input int    SB_Bonus_ZE         = 8;
 input int    SB_Bonus_BC         = 8;
 input int    SB_Bonus_SMC        = 8;
 input int    SB_BaseConf         = 8;
+input double SB_EliteBoost = 15.0;
 // BC Pass-Through
 input int    SB_BC_FastMA        = 5;
 input int    SB_BC_SlowMA        = 12;
@@ -3118,6 +3120,9 @@ sb_handle = iCustom(_Symbol, (ENUM_TIMEFRAMES)SignalTimeframe, AAI_Ind("AAI_Indi
    // Additive bonuses
    SB_Bonus_ZE, SB_Bonus_BC, SB_Bonus_SMC,
    SB_BaseConf,
+   
+      SB_EliteBoost,  
+      
    // BC pass-through
    SB_BC_FastMA, SB_BC_SlowMA,
    // ZE pass-through
