@@ -9,6 +9,8 @@
 #property strict
 #property version "2.8" // As Coder, incremented version for this change
 
+#include <AAI/AAI_PipMath.mqh>
+
 // === BEGIN Spec: Headless + single buffer for Strength ===
 #property indicator_plots   1 // Canonical Strength at plot 0
 #property indicator_buffers 1
@@ -181,7 +183,7 @@ ZoneAnalysis FindZone(ENUM_TIMEFRAMES tf, bool isDemand, int shift)
       double impulseStart = isDemand ? rates[i].low : rates[i].high;
       double impulseEnd = isDemand ? rates[i-1].high : rates[i-1].low;
       double impulseMove = MathAbs(impulseEnd - impulseStart);
-      if(impulseMove / _Point < MinImpulseMovePips) continue;
+if(AAI_PipsFromPrice(impulseMove) < MinImpulseMovePips) continue;
 
       analysis.proximal = isDemand ? rates[i].high : rates[i].low;
       analysis.distal = isDemand ? rates[i].low : rates[i].high;
@@ -217,7 +219,7 @@ int CalculateZoneStrength(const ZoneAnalysis &zone, ENUM_TIMEFRAMES tf, int shif
         atr = atr_buffer[0];
       IndicatorRelease(atr_handle);
     }
-    if(atr == 0.0) atr = _Point * 10;
+if(atr == 0.0) atr = AAI_PriceFromPips(1.0); // 1 pip fallback
 
     int explosiveScore = 0;
     if(zone.impulseStrength > atr * 2.0) explosiveScore = 5;
