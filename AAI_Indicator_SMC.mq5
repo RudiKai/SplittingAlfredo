@@ -9,6 +9,9 @@
 #property indicator_chart_window
 #property version "1.0"
 
+#include <AAI/AAI_PipMath.mqh>
+
+
 // --- Indicator Buffers & Plots (Headless Export) ---
 #property indicator_buffers 3
 #property indicator_plots   3
@@ -144,7 +147,7 @@ int OnCalculate(const int rates_total,
         if(UseFVG && i < rates_total - 2)
         {
             // Bullish FVG: low of bar i is higher than high of bar i+2
-            if(low[i] > high[i+2] && (low[i] - high[i+2]) / _Point >= FVG_MinPips)
+if(low[i] > high[i+2] && AAI_PipsFromPrice(low[i] - high[i+2]) >= FVG_MinPips)
             {
                 signal += 1;
                 confidence += 4.0;
@@ -152,7 +155,7 @@ int OnCalculate(const int rates_total,
                 pattern_count++;
             }
             // Bearish FVG: high of bar i is lower than low of bar i+2
-            else if(high[i] < low[i+2] && (low[i+2] - high[i]) / _Point >= FVG_MinPips)
+else if(high[i] < low[i+2] && AAI_PipsFromPrice(low[i+2] - high[i]) >= FVG_MinPips)
             {
                 signal -= 1;
                 confidence += 4.0;
