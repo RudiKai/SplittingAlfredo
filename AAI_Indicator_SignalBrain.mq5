@@ -172,6 +172,11 @@ int OnInit()
                GlobalVariableCheck("AAI/SB/ConfModel") ? GlobalVariableGet("AAI/SB/ConfModel") : -1.0,
                model, wb, wbc, wze, wsmc, cpen);
             
+     PrintFormat("[SB_ARGS] BaseConf=%d EliteBoost=%.1f BC=%d/%d ZE=%.1f SMC_FVGmin=%.2f",
+            SB_BaseConf, Inp_SB_EliteBoost, SB_BC_FastMA, SB_BC_SlowMA,
+            SB_ZE_MinImpulseMovePips, SB_SMC_FVG_MinPips);
+       
+            
     // --- Bind all 7 data buffers ---
     SetIndexBuffer(0, FinalSignalBuffer,      INDICATOR_DATA);
     SetIndexBuffer(1, FinalConfidenceBuffer,  INDICATOR_DATA);
