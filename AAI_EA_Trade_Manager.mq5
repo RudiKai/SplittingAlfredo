@@ -381,6 +381,7 @@ enum ENUM_OSR_FillMode { OSR_FILL_IOC, OSR_FILL_FOK, OSR_FILL_DEFAULT };
 // --- T006: HUD Object Name ---
 const string HUD_OBJECT_NAME = "AAI_HUD";
 #include "inc/AAI_Utils.mqh"
+#include "inc/AAI_PipMath.mqh"
 
 
 
@@ -2478,19 +2479,6 @@ void AAI_Block(const string reason)
     // Deprecated by new Gate functions which handle their own logging/counting
 }
 
-//+------------------------------------------------------------------+
-//| Pip Math Helpers                                                 |
-//+------------------------------------------------------------------+
-inline double PipSize()
-{
-   const int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
-   return (digits == 3 || digits == 5) ? 10 * _Point : _Point;
-}
-
-inline double PriceFromPips(double pips)
-{
-   return pips * PipSize();
-}
 
 //+------------------------------------------------------------------+
 //| Simple string to ulong hash (for duplicate guard)                |
