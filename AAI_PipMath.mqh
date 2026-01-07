@@ -1,6 +1,8 @@
 #ifndef AAI_PIPMATH_MQH
 #define AAI_PIPMATH_MQH
 
+// This file is also in "\MQL5\Experts\AlfredAI\inc\AAI_PipMath.mqh" and in "\MQL5\Experts\AlfredAI\inc\AAI_PipMath.mqh"
+
 // Resolve empty symbol to current chart symbol
 inline string AAI_Sym(const string sym = "")
 {
