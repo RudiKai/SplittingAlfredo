@@ -46,8 +46,8 @@ int OnInit()
     // --- TICKET FIX: Create MA handles using explicit iCustom to prevent [4002] error ---
     // The iCustom function for the built-in Moving Average takes these parameters:
     // ma_period, ma_shift, ma_method, applied_price
-    g_fastMA_handle = iCustom(_Symbol, _Period, "Examples\\Custom Moving Average", BC_FastMA, 0, BC_MAMethod, BC_Price);
-    g_slowMA_handle = iCustom(_Symbol, _Period, "Examples\\Custom Moving Average", BC_SlowMA, 0, BC_MAMethod, BC_Price);
+g_fastMA_handle = iMA(_Symbol, _Period, BC_FastMA, 0, BC_MAMethod, BC_Price);
+g_slowMA_handle = iMA(_Symbol, _Period, BC_SlowMA, 0, BC_MAMethod, BC_Price);
     
     // --- Validate handles ---
     if(g_fastMA_handle < 0 || g_slowMA_handle < 0)
