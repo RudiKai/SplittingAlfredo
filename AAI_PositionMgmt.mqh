@@ -50,10 +50,6 @@ void ManageOpenPositions(const MqlDateTime &loc, bool overnight)
    }
 }
 
-//+------------------------------------------------------------------+
-//| Helper to get pip size                                           |
-//+------------------------------------------------------------------+
-double AAI_Pip() { return (_Digits==3 || _Digits==5) ? 10*_Point : _Point; }
 
 //+------------------------------------------------------------------+
 //| Unified SL updater                                               |
