@@ -769,7 +769,7 @@ input int    SB_Bonus_ZE         = 8;
 input int    SB_Bonus_BC         = 8;
 input int    SB_Bonus_SMC        = 8;
 input int    SB_BaseConf         = 8;
-input double SB_EliteBoost = 15.0;
+input double Inp_SB_EliteBoost = 15.0;
 // BC Pass-Through
 input int    SB_BC_FastMA        = 5;
 input int    SB_BC_SlowMA        = 12;
@@ -3121,7 +3121,7 @@ sb_handle = iCustom(_Symbol, (ENUM_TIMEFRAMES)SignalTimeframe, AAI_Ind("AAI_Indi
    SB_Bonus_ZE, SB_Bonus_BC, SB_Bonus_SMC,
    SB_BaseConf,
    
-      SB_EliteBoost,  
+      Inp_SB_EliteBoost,  
       
    // BC pass-through
    SB_BC_FastMA, SB_BC_SlowMA,
