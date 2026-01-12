@@ -14,7 +14,7 @@
 #include <Trade\Trade.mqh>
 #include <Arrays\ArrayObj.mqh>
 #include <Arrays\ArrayLong.mqh>
-#include <AAI/AAI_Include_News.mqh>          //// this is still to be built...
+#include "AAI/AAI_Include_News.mqh"
 
 // --- Forward Declarations (needed because used before defined) ---
 void   PHW_LogFailure(const uint retcode);
@@ -1008,7 +1008,7 @@ input group "News/Event Gate"
 input bool           InpNews_Enable      = false;
 input string         InpNews_CsvName     = "AAI_News.csv";   // From Common Files
 input ENUM_NEWS_Mode InpNews_Mode = NEWS_PREFERRED;
-input bool           InpNews_TimesAreUTC = true;
+input bool           InpNews_TimesAreUTC = false; // Calendar API uses server time
 input bool           InpNews_FilterHigh  = true;
 input bool           InpNews_FilterMedium= true;
 input bool           InpNews_FilterLow   = false;
@@ -2025,7 +2025,11 @@ if(g_sb.valid && g_sb.closed_bar_time == t)
   double v;
   // Signal
   if(!Read1(sb_handle, 0, sb_shift, v, "SB_SIG")) { g_sb.valid=false; return false; }
-  g_sb.sig = (int)MathRound(v);
+  // SB buffer 0 encodes direction as the SIGN of the value (often +/-entry price).
+  // Treat it as a sign-only signal so it behaves consistently across symbols/prices.
+  g_sb.sig = 0;
+  if(v > 0.0)      g_sb.sig = 1;
+  else if(v < 0.0) g_sb.sig = -1;
   // Confidence
   if(!Read1(sb_handle, 1, sb_shift, v, "SB_CONF")) { g_sb.valid=false; return false; }
   g_sb.conf = v;
@@ -3029,6 +3033,18 @@ int OnInit()
    g_blk_slc = 0; // T039
    g_summary_printed = false;
    g_sb.valid = false; // Initialize cache as invalid
+
+   // --- Tester hygiene -------------------------------------------------
+   // This EA uses terminal Global Variables (GV) for orchestration (AAI/MS/*)
+   // and PT/trailing latches (AAI_PT_*). In Strategy Tester those GVs can
+   // persist across runs, causing non-deterministic results (especially
+   // visual vs non-visual). Clear our namespaces at start of each test.
+   if((bool)MQLInfoInteger(MQL_TESTER))
+   {
+      GlobalVariablesDeleteAll("AAI/MS/");
+      GlobalVariablesDeleteAll("AAI_PT_");
+      if(GlobalVariableCheck("AAI/ACC/BARLOCK")) GlobalVariableDel("AAI/ACC/BARLOCK");
+   }
    
       // Capture starting balance for AAI_METRICS
    AAI_start_balance = AccountInfoDouble(ACCOUNT_BALANCE);
