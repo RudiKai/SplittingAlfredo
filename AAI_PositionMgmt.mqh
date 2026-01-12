@@ -120,7 +120,7 @@ void HandlePartialProfits()
    double volume = PositionGetDouble(POSITION_VOLUME);
    double close_volume = volume * (Partial_Pct / 100.0);
    double lot_step = SymbolInfoDouble(symbolName, SYMBOL_VOLUME_STEP);
-   close_volume = round(close_volume / lot_step) * lot_step;
+   close_volume = MathRound(close_volume / lot_step) * lot_step;
    if(close_volume < lot_step) return;
 
    if(!MSO_MaySend(_Symbol))
