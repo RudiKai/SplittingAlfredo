@@ -191,7 +191,19 @@ bool OSR_IsRetryable(const uint retcode)
 //+------------------------------------------------------------------+
 //| >>> T045: Multi-Symbol Orchestration Helpers <<<                 |
 //+------------------------------------------------------------------+
-ulong NowMs() { return (ulong)GetMicrosecondCount() / 1000ULL; }
+// IMPORTANT: In Strategy Tester, wall-clock timers (GetMicrosecondCount) make results
+// depend on simulation speed (visual vs non-visual). Use simulated time there.
+ulong NowMs()
+{
+   if((bool)MQLInfoInteger(MQL_TESTER))
+   {
+      MqlTick tk;
+      if(SymbolInfoTick(_Symbol, tk) && tk.time_msc > 0)
+         return (ulong)tk.time_msc;
+      return (ulong)TimeCurrent() * 1000ULL;
+   }
+   return (ulong)GetMicrosecondCount() / 1000ULL;
+}
 
 bool GV_Get(const string key, double &val)
 {
