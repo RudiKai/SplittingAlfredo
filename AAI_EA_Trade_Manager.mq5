@@ -369,6 +369,14 @@ inline string AAI_Ind(const string name)
       return name;
    return AAI_IND_PREFIX + name;
 }
+string SB_GVPrefix()
+{
+   return StringFormat("AAI/SB/%I64d/%s/%s/",
+                       (long)AccountInfoInteger(ACCOUNT_LOGIN),
+                       _Symbol,
+                       TfLabel((ENUM_TIMEFRAMES)SignalTimeframe));
+}
+string SB_GVKey(const string leaf) { return SB_GVPrefix() + leaf; }
 
 // --- TICKET T021: Bar-Change Cache ---
 struct SBReadCache {
@@ -2212,18 +2220,38 @@ string logLine = StringFormat(
     );
 AAI_AppendJournal(logLine);
 }
+string AAI_TfLabelFromMinutes(const int tf_minutes)
+{
+   if(tf_minutes < 60)                      return "M"  + IntegerToString(tf_minutes);
+   if(tf_minutes < 1440 && tf_minutes%60==0) return "H"  + IntegerToString(tf_minutes/60);
+   if(tf_minutes == 1440)                   return "D1";
+   if(tf_minutes == 10080)                  return "W1";
+   if(tf_minutes == 43200)                  return "MN1";
+   return IntegerToString(tf_minutes);
+}
+
+string SB_GVPrefix_EA()
+{
+   return StringFormat("AAI/SB/%I64d/%s/%s/",
+                       (long)AccountInfoInteger(ACCOUNT_LOGIN),
+                       _Symbol,
+                       AAI_TfLabelFromMinutes((int)SignalTimeframe));
+}
+string SB_GVKey_EA(const string leaf) { return SB_GVPrefix_EA() + leaf; }
 
 //+------------------------------------------------------------------+
 //| Push SignalBrain config into globals for the SB indicator        |
 //+------------------------------------------------------------------+
 void AAI_PushSignalBrainGlobals()
 {
-   GlobalVariableSet("AAI/SB/ConfModel",        (double)InpSB_ConfModel);
-   GlobalVariableSet("AAI/SB/W_BASE",          InpSB_W_BASE);
-   GlobalVariableSet("AAI/SB/W_BC",            InpSB_W_BC);
-   GlobalVariableSet("AAI/SB/W_ZE",            InpSB_W_ZE);
-   GlobalVariableSet("AAI/SB/W_SMC",           InpSB_W_SMC);
-   GlobalVariableSet("AAI/SB/ConflictPenalty", InpSB_ConflictPenalty);
+GlobalVariableSet(SB_GVKey_EA("ConfModel"),        (double)InpSB_ConfModel);
+GlobalVariableSet(SB_GVKey_EA("W_BASE"),           InpSB_W_BASE);
+GlobalVariableSet(SB_GVKey_EA("W_BC"),             InpSB_W_BC);
+GlobalVariableSet(SB_GVKey_EA("W_ZE"),             InpSB_W_ZE);
+GlobalVariableSet(SB_GVKey_EA("W_SMC"),            InpSB_W_SMC);
+GlobalVariableSet(SB_GVKey_EA("ConflictPenalty"),  InpSB_ConflictPenalty);
+
+
 
    PrintFormat("[SB_GLOBALS] model=%d W_BASE=%.2f W_BC=%.2f W_ZE=%.2f W_SMC=%.2f cpen=%.2f",
                (int)InpSB_ConfModel,
