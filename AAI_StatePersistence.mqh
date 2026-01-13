@@ -7,14 +7,22 @@
 //+------------------------------------------------------------------+
 string SP_FileName()
 {
-    string prog = MQLInfoString(MQL_PROGRAM_NAME);
-    StringReplace(prog, ".ex5", ""); // Clean up name
-    return StringFormat("%s_%s_%d_%s_%s.spv",
-                        SP_FilePrefix,
-                        prog,
-                        (int)AccountInfoInteger(ACCOUNT_LOGIN),
-                        _Symbol,
-                        TfLabel((ENUM_TIMEFRAMES)_Period));
+string prog = MQLInfoString(MQL_PROGRAM_NAME);
+StringReplace(prog, ".ex5", "");
+StringReplace(prog, ".mq5", "");
+
+// sanitize path-ish chars
+StringReplace(prog, "\\", "_");
+StringReplace(prog, "/",  "_");
+StringReplace(prog, ":",  "_");
+
+return StringFormat("%s_%s_%d_%s_%s.spv",
+                    SP_FilePrefix,
+                    prog,
+                    (int)AccountInfoInteger(ACCOUNT_LOGIN),
+                    _Symbol,
+                    CurrentTfLabel());  // <-- respects SignalTimeframe if set
+
 }
 
 string EA_RejectHistoryToString()
