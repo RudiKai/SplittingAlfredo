@@ -422,10 +422,11 @@ void AAI_UpdateSignalWeights()
    w_smc  = MathMin(w_smc,  maxW);
 
    // Push dynamic weights for SignalBrain
-   GlobalVariableSet("AAI/SB/W_BASE", w_base);
-   GlobalVariableSet("AAI/SB/W_BC",   w_bc);
-   GlobalVariableSet("AAI/SB/W_ZE",   w_ze);
-   GlobalVariableSet("AAI/SB/W_SMC",  w_smc);
+GlobalVariableSet(SB_GVKey("W_BASE"), w_base);
+GlobalVariableSet(SB_GVKey("W_BC"),   w_bc);
+GlobalVariableSet(SB_GVKey("W_ZE"),   w_ze);
+GlobalVariableSet(SB_GVKey("W_SMC"),  w_smc);
+
 
    // Optional debug
   // PrintFormat("[DYN_WEIGHTS] msm=%s base=%.2f bc=%.2f ze=%.2f smc=%.2f",
