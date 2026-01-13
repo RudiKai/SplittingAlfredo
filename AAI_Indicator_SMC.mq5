@@ -114,10 +114,17 @@ int OnCalculate(const int rates_total,
     ArraySetAsSeries(close, true);
 
 
-    if(rates_total < WarmupBars)
-    {
-        return(0);
-    }
+if(rates_total < WarmupBars)
+{
+   for(int i=0; i<rates_total; i++)
+   {
+      SignalBuffer[i] = 0.0;
+      ConfidenceBuffer[i] = 0.0;
+      ReasonBuffer[i] = 0.0;
+   }
+   return(rates_total);
+}
+
 
     int start_bar;
     if(prev_calculated == 0)
