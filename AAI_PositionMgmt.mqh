@@ -1,22 +1,66 @@
 #ifndef AAI_POSMGMT_MQH
 #define AAI_POSMGMT_MQH
 
-void ManageOpenPositions(const MqlDateTime &loc, bool overnight)
+
+// --- helper: hedge-safe SL/TP modify by POSITION TICKET ---
+bool AAI_ModifySLTP_ByTicket(const ulong pos_ticket, const double sl, const double tp)
 {
-   if(!PositionSelect(_Symbol)) return;
-   // --- Partial Take-Profit first (state-free worker) ---
-   if(InpPT_Enable) {
+   if(pos_ticket == 0) return false;
+   if(!PositionSelectByTicket(pos_ticket)) return false;
+
+   MqlTradeRequest req;
+   MqlTradeResult  res;
+   ZeroMemory(req);
+   ZeroMemory(res);
+
+   req.action   = TRADE_ACTION_SLTP;
+   req.position = pos_ticket;
+   req.symbol   = PositionGetString(POSITION_SYMBOL);
+   req.magic    = (long)MagicNumber;
+   req.sl       = sl;
+   req.tp       = tp;
+
+   if(!OrderSend(req, res))
+      return false;
+
+   return (res.retcode == TRADE_RETCODE_DONE ||
+           res.retcode == TRADE_RETCODE_DONE_PARTIAL);
+}
+
+
+void ManageOnePosition(const ulong ticket, const MqlDateTime &loc, bool overnight)
+{
+   if(ticket == 0) return;
+   if(!PositionSelectByTicket(ticket)) return;
+
+   // Safety: only manage our own position
+   if(PositionGetString(POSITION_SYMBOL) != _Symbol) return;
+   if((long)PositionGetInteger(POSITION_MAGIC) != (long)MagicNumber) return;
+
+   // --- Partial Take-Profit first (if your PT module relies on "currently selected position",
+   // selecting by ticket here makes it deterministic in hedging) ---
+   if(InpPT_Enable)
+   {
       PT_OnTick();
-      if(!PositionSelect(_Symbol)) return; // might be fully closed
+
+      // Might have closed the position
+      if(!PositionSelectByTicket(ticket)) return;
+      if(!PositionSelectByTicket(ticket)) return;
+      // Re-check ownership/symbol just in case
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol) return;
+      if((long)PositionGetInteger(POSITION_MAGIC) != (long)MagicNumber) return;
    }
 
-   if(!Exit_FixedRR) {
-     // HandlePartialProfits(); // disabled by PT_OnTick
-     if(!PositionSelect(_Symbol)) return;
+   if(!Exit_FixedRR)
+   {
+      // HandlePartialProfits(); // disabled by PT_OnTick
+      // (No need to re-select by symbol; we’re ticket-based.)
+      if(!PositionSelectByTicket(ticket)) return;
    }
 
-   ulong ticket = PositionGetInteger(POSITION_TICKET);
-   if(loc.day_of_week==FRIDAY && loc.hour>=FridayCloseHour) {
+   // --- Friday close (per-position) ---
+   if(loc.day_of_week == FRIDAY && loc.hour >= FridayCloseHour)
+   {
       if(!MSO_MaySend(_Symbol))
       {
          if(MSO_LogVerbose && g_sb.valid && g_sb.closed_bar_time != g_stamp_mso)
@@ -26,15 +70,18 @@ void ManageOpenPositions(const MqlDateTime &loc, bool overnight)
          }
          return; // Defer action
       }
-     if(!trade.PositionClose(ticket)) PHW_LogFailure(trade.ResultRetcode()); // T037
-     return;
+
+      if(!trade.PositionClose(ticket)) PHW_LogFailure(trade.ResultRetcode()); // T037
+      return;
    }
 
+   // --- Read position fields (for this ticket) ---
    ENUM_POSITION_TYPE side = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
    double entry = PositionGetDouble(POSITION_PRICE_OPEN);
    double sl    = PositionGetDouble(POSITION_SL);
    double tp    = PositionGetDouble(POSITION_TP);
 
+   // --- BE / Trail ---
    if(AAI_ApplyBEAndTrail(side, entry, sl))
    {
       if(!MSO_MaySend(_Symbol))
@@ -46,10 +93,30 @@ void ManageOpenPositions(const MqlDateTime &loc, bool overnight)
          }
          return; // Defer action
       }
-     if(!trade.PositionModify(_Symbol, sl, tp)) PHW_LogFailure(trade.ResultRetcode()); // T037
+
+      // Hedge-safe modify by ticket (instead of trade.PositionModify(_Symbol,...))
+      if(!AAI_ModifySLTP_ByTicket(ticket, sl, tp))
+         PHW_LogFailure(trade.ResultRetcode()); // T037 (retcode from CTrade may not reflect OrderSend here)
    }
 }
 
+
+void ManageOpenPositions(const MqlDateTime &loc, bool overnight)
+{
+   // Iterate backwards so closing doesn’t break indexing
+   for(int i = PositionsTotal() - 1; i >= 0; --i)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket == 0) continue;
+      if(!PositionSelectByTicket(ticket)) continue;
+
+      // Only manage our symbol + magic
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if((long)PositionGetInteger(POSITION_MAGIC) != (long)MagicNumber) continue;
+
+      ManageOnePosition(ticket, loc, overnight);
+   }
+}
 
 //+------------------------------------------------------------------+
 //| Unified SL updater                                               |
