@@ -334,10 +334,12 @@ bool OSR_SendMarket(const int direction,
             g_stamp_mso = bt;
         }
     }
-    if(!T49_MayOpenThisBar(bt))
-    {
-        if(InpOSR_LogVerbose) Print("[T49] throttle (soft)");
-    }
+if(!T49_MayOpenThisBar(bt))
+{
+    if(InpOSR_LogVerbose) Print("[T49] throttle (hard block)");
+    return false;
+}
+
     if(!T50_AllowedNow(bt))
     {
         if(InpOSR_LogVerbose) Print("[T50] window/off-hours (soft)");
@@ -431,13 +433,16 @@ bool OSR_SendMarket(const int direction,
         // Log result (1=reject, 0=ok) for EWMA reject rate
         EA_LogSendResult(lastRes.retcode);
 
-        if(sent && (lastRes.retcode == TRADE_RETCODE_DONE || lastRes.retcode == TRADE_RETCODE_DONE_PARTIAL))
-        {
-            price_io = p;
-            sl_io = sl;
-            tp_io = tp;
-            return true;
-        }
+if(sent && (lastRes.retcode == TRADE_RETCODE_DONE || lastRes.retcode == TRADE_RETCODE_DONE_PARTIAL))
+{
+    price_io = p;
+    sl_io = sl;
+    tp_io = tp;
+
+    T49_ClaimBar(bt);   // <-- claim only after success
+    return true;
+}
+
 
         if(InpOSR_LogVerbose)
             PrintFormat("[OSR] OrderSend fail (attempt %d): ret=%u, dev=%d, price=%.5f",
