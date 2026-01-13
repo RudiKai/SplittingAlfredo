@@ -116,8 +116,13 @@ void HM_OnTick()
     if(TimeCurrent() < t.next_try_time) continue;
 
     // 1) Select the exact position (prefer ticket over symbol)
-    bool have = (t.pos_ticket > 0 ? PositionSelectByTicket(t.pos_ticket) : PositionSelect(t.symbol));
-    if(!have){ g_hm_tasks.Delete(i); delete t; continue; }
+bool have = false;
+if(t.pos_ticket > 0)
+   have = PositionSelectByTicket(t.pos_ticket);
+
+// If ticket is missing, don't risk modifying the wrong position
+if(!have) { g_hm_tasks.Delete(i); delete t; continue; }
+
 
     int    ptype     = (int)PositionGetInteger(POSITION_TYPE);
     int    direction = (ptype==POSITION_TYPE_BUY ? +1 : -1);
