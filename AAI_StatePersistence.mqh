@@ -64,7 +64,7 @@ if(MQLInfoInteger(MQL_TESTER) || MQLInfoInteger(MQL_OPTIMIZATION))
                                "slc_b_until=%I64d|slc_s_until=%I64d|slc_b_rep=%d|slc_s_rep=%d|"
                                "ea_slip=%.4f|ea_lat=%.2f|ea_dev=%d|rej_head=%d|rej_cnt=%d|rej=%s|"
                                "ecf_ewma=%.4f|curve=%.2f|peak=%.2f|day=%I64d",
-                               SP_Version, TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS), _Symbol, TfLabel((ENUM_TIMEFRAMES)_Period),
+                               SP_Version, TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS), _Symbol, CurrentTfLabel(),
                                (long)g_phw_cool_until, g_phw_repeats_today,
                                (long)g_slc_cool_until_buy, (long)g_slc_cool_until_sell, g_slc_repeats_buy, g_slc_repeats_sell,
                                g_ea_state.ewma_slip_pts, g_ea_state.ewma_latency_ms, g_last_dev_pts, g_ea_state.rej_head, g_ea_state.rej_count, rej_hist_str,
@@ -131,7 +131,8 @@ uint calc_hash = FNV1a32(core);
 
         if(k=="ver" && (int)StringToInteger(v) != SP_Version) { if(SP_LogVerbose) Print("[SP] Version mismatch"); return false; }
         if(k=="sym" && v != _Symbol) { if(SP_LogVerbose) Print("[SP] Symbol mismatch"); return false; }
-        if(k=="tf" && v != TfLabel((ENUM_TIMEFRAMES)_Period)) { if(SP_LogVerbose) Print("[SP] Timeframe mismatch"); return false; }
+       if(k=="tf" && v != CurrentTfLabel()) { if(SP_LogVerbose) Print("[SP] Timeframe mismatch"); return false; }
+
 
         if(k=="phw_until")   g_phw_cool_until = (datetime)StringToInteger(v);
         if(k=="phw_rep")     g_phw_repeats_today = (int)StringToInteger(v);
