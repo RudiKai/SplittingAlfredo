@@ -850,11 +850,14 @@ double ComputeAggregateRiskPct(const string sym, const long magic)
 // --- Gate 20: Position (hedging-aware) ---
 bool GatePosition(string &reason_id)
 {
-    if(!InpHEDGE_AllowMultiple)
-    {
-        if(PositionSelect(_Symbol)) { reason_id = "position_exists"; return false; }
-        return true;
-    }
+if(!InpHEDGE_AllowMultiple)
+{
+    int longCnt = 0, shortCnt = 0;
+    if(CountMyPositions(_Symbol, (long)MagicNumber, longCnt, shortCnt) > 0)
+    { reason_id = "position_exists"; return false; }
+    return true;
+}
+
 
     int dir = g_sb.sig; // -1 sell, +1 buy (from SB cache)
     int longCnt, shortCnt;
