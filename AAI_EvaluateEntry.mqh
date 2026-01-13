@@ -118,7 +118,13 @@ if(!Read1(sb_handle, SB_BUF_SIGNAL, sb_shift + 1, prev_sig_raw, "SB_Prev"))
    return;
 }
 
-if(!GateTrigger(direction, (int)MathRound(prev_sig_raw), reason_id))
+// SB buffer 0 encodes direction as the SIGN of the value (often +/-entry price).
+// Use sign-only comparison so edge detection works across symbols/prices.
+int prev_sig = 0;
+if(prev_sig_raw > 0.0)      prev_sig = 1;
+else if(prev_sig_raw < 0.0) prev_sig = -1;
+
+if(!GateTrigger(direction, prev_sig, reason_id))
 {
    /* No block log needed */ 
    return;
@@ -413,10 +419,10 @@ if(pos_ticket == 0)
    pos_ticket = best_ticket;
 }
 
-
-      // Fallback for brokers/builds that don't populate result.position
-      if(pos_ticket == 0 && PositionSelect(_Symbol))
-         pos_ticket = (ulong)PositionGetInteger(POSITION_TICKET);
+// Removed: PositionSelect(_Symbol) is unsafe in hedging.
+// We already resolved pos_ticket via deal position id OR magic-filtered scan above.
+    //  if(pos_ticket == 0 && PositionSelect(_Symbol))
+     //    pos_ticket = (ulong)PositionGetInteger(POSITION_TICKET);
 
       if(pos_ticket > 0 && PositionSelectByTicket(pos_ticket))
       {
