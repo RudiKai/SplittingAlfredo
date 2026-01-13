@@ -2974,11 +2974,27 @@ bool Mgmt_SpreadOk()
 bool Mgmt_UnderMinHold(const int min_hold_sec)
 {
    if(min_hold_sec <= 0) return false;
-   if(!PositionSelect(_Symbol)) return false;
-   if((long)PositionGetInteger(POSITION_MAGIC) != (long)MagicNumber) return false;
-   const datetime t0 = (datetime)PositionGetInteger(POSITION_TIME);
-   return ((int)(TimeCurrent() - t0) < min_hold_sec);
+
+   datetime newest_time = 0;
+   bool found = false;
+
+   for(int i = PositionsTotal()-1; i >= 0; --i)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t == 0) continue;
+      if(!PositionSelectByTicket(t)) continue;
+
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if((long)PositionGetInteger(POSITION_MAGIC) != (long)MagicNumber) continue;
+
+      datetime pt = (datetime)PositionGetInteger(POSITION_TIME);
+      if(!found || pt > newest_time) { newest_time = pt; found = true; }
+   }
+
+   if(!found) return false;
+   return ((int)(TimeCurrent() - newest_time) < min_hold_sec);
 }
+
 
 // ============================================================================
 // VAPT hysteresis: stabilize "hot" flag without needing raw bps
