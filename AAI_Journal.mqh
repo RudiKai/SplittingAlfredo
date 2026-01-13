@@ -86,15 +86,48 @@ void AAI_LogExec(const int dir, double lots_hint = 0.0, const string run_id = "a
         if(r_volume > 0.0) lots_eff = r_volume;
     }
 
-    // Pull SL/TP and volume from the live position if needed
-    if(PositionSelect(_Symbol))
-    {
-        if(entry   <= 0.0) entry   = PositionGetDouble(POSITION_PRICE_OPEN);
-        sl = PositionGetDouble(POSITION_SL);
-        tp = PositionGetDouble(POSITION_TP);
-        double v = PositionGetDouble(POSITION_VOLUME);
-        if(lots_eff <= 0.0 && v > 0.0) lots_eff = v;
-    }
+// Pull SL/TP and volume from the live position if needed
+bool have_pos = false;
+ulong pos_ticket = 0;
+
+// If called from OnTradeTransaction path, prefer the exact position id from the last deal
+if(run_id == "tx" && AAI_last_in_deal > 0 && HistoryDealSelect(AAI_last_in_deal))
+   pos_ticket = (ulong)HistoryDealGetInteger(AAI_last_in_deal, DEAL_POSITION_ID);
+
+if(pos_ticket > 0)
+   have_pos = PositionSelectByTicket(pos_ticket);
+
+// Fallback: newest position for this symbol+magic
+if(!have_pos)
+{
+   datetime best_time = 0;
+   ulong best_ticket = 0;
+
+   for(int i = PositionsTotal()-1; i >= 0; --i)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t == 0) continue;
+      if(!PositionSelectByTicket(t)) continue;
+
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if((long)PositionGetInteger(POSITION_MAGIC) != (long)MagicNumber) continue;
+
+      datetime pt = (datetime)PositionGetInteger(POSITION_TIME);
+      if(pt >= best_time) { best_time = pt; best_ticket = t; }
+   }
+
+   if(best_ticket > 0) have_pos = PositionSelectByTicket(best_ticket);
+}
+
+if(have_pos)
+{
+    if(entry   <= 0.0) entry   = PositionGetDouble(POSITION_PRICE_OPEN);
+    sl = PositionGetDouble(POSITION_SL);
+    tp = PositionGetDouble(POSITION_TP);
+    double v = PositionGetDouble(POSITION_VOLUME);
+    if(lots_eff <= 0.0 && v > 0.0) lots_eff = v;
+}
+
 
     // Compute RR if possible
     double rr = 0.0;
