@@ -55,10 +55,19 @@ bool T49_MayOpenThisBar(const datetime bar_time)
       }
    }
 
-   // Claim this bar for the account so other charts skip new entries this bar
-   GlobalVariableSet(k, (double)bar_time);
+   // NOTE: do NOT claim here anymore (claim only after a successful send)
    return true;
 }
+
+void T49_ClaimBar(const datetime bar_time)
+{
+   if(!InpT49_EnableBarLock) return;
+   if(!T49_Enable) return;
+
+   const string k = "AAI/ACC/BARLOCK";
+   GlobalVariableSet(k, (double)bar_time);
+}
+
 
 // === T50 prototypes (bodies are elsewhere in the file) ====================
 // === T50: Failsafe / Self-check (default OFF) =============================
