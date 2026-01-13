@@ -94,7 +94,7 @@ input int    SB_SMC_BOS_Lookback= 50;
 //--- Confluence Model Selection & Geometric Weights ---
 input group "--- Confluence Model ---";
 enum ENUM_SB_ConfModel { SB_CONF_ADDITIVE=0, SB_CONF_GEOMETRIC=1 };
-input ENUM_SB_ConfModel InpSB_ConfModel = SB_CONF_ADDITIVE;
+input ENUM_SB_ConfModel InpSB_ConfModel = SB_CONF_GEOMETRIC;
 input double InpSB_W_BASE = 1.0;
 input double InpSB_W_BC   = 1.0;
 input double InpSB_W_ZE   = 1.0;
@@ -133,6 +133,27 @@ double GlobalOrDefault(const string name, double def_value)
     }
     return def_value;
 }
+// --- Local TF label helper (avoids TfLabel + ENUM_TIMEFRAMES) ---
+string AAI_TfLabelFromMinutes(const int tf_minutes)
+{
+   if(tf_minutes < 60)                    return "M"  + IntegerToString(tf_minutes);
+   if(tf_minutes < 1440 && tf_minutes%60==0) return "H"  + IntegerToString(tf_minutes/60);
+   if(tf_minutes == 1440)                 return "D1";
+   if(tf_minutes == 10080)                return "W1";
+   if(tf_minutes == 43200)                return "MN1";
+   return IntegerToString(tf_minutes); // fallback
+}
+
+string SB_GVPrefix()
+{
+   return StringFormat("AAI/SB/%I64d/%s/%s/",
+                       (long)AccountInfoInteger(ACCOUNT_LOGIN),
+                       _Symbol,
+                       AAI_TfLabelFromMinutes(Period()));
+}
+
+string SB_GVKey(const string leaf) { return SB_GVPrefix() + leaf; }
+
 
 
 // --- Indicator Handles ---
@@ -154,12 +175,12 @@ static datetime g_last_smc_fail_log_time = 0;
 int OnInit()
 {
    // Effective params (globals override inputs)
-   int model   = (int)GlobalOrDefault("AAI/SB/ConfModel", (double)InpSB_ConfModel);
-   double wb   = GlobalOrDefault("AAI/SB/W_BASE",          InpSB_W_BASE);
-   double wbc  = GlobalOrDefault("AAI/SB/W_BC",            InpSB_W_BC);
-   double wze  = GlobalOrDefault("AAI/SB/W_ZE",            InpSB_W_ZE);
-   double wsmc = GlobalOrDefault("AAI/SB/W_SMC",           InpSB_W_SMC);
-   double cpen = GlobalOrDefault("AAI/SB/ConflictPenalty", InpSB_ConflictPenalty);
+   int model   = (int)GlobalOrDefault("ConfModel", (double)InpSB_ConfModel);
+   double wb   = GlobalOrDefault("W_BASE",          InpSB_W_BASE);
+   double wbc  = GlobalOrDefault("SB/W_BC",            InpSB_W_BC);
+   double wze  = GlobalOrDefault("SB/W_ZE",            InpSB_W_ZE);
+   double wsmc = GlobalOrDefault("SB/W_SMC",           InpSB_W_SMC);
+   double cpen = GlobalOrDefault("SB/ConflictPenalty", InpSB_ConflictPenalty);
 
    PrintFormat("[SB_INIT] %s name=%s path=%s now=%s input_model=%d input_wb=%.2f input_wbc=%.2f input_wze=%.2f input_wsmc=%.2f input_cpen=%.2f",
                SB_BUILD_TAG,
@@ -169,7 +190,7 @@ int OnInit()
                (int)InpSB_ConfModel, InpSB_W_BASE, InpSB_W_BC, InpSB_W_ZE, InpSB_W_SMC, InpSB_ConflictPenalty);
 
    PrintFormat("[SB_MODEL] gv_model=%.0f eff_model=%d wb=%.2f wbc=%.2f wze=%.2f wsmc=%.2f cpen=%.2f",
-               GlobalVariableCheck("AAI/SB/ConfModel") ? GlobalVariableGet("AAI/SB/ConfModel") : -1.0,
+               GlobalVariableCheck("ConfModel") ? GlobalVariableGet("ConfModel") : -1.0,
                model, wb, wbc, wze, wsmc, cpen);
             
      PrintFormat("[SB_ARGS] BaseConf=%d EliteBoost=%.1f BC=%d/%d ZE=%.1f SMC_FVGmin=%.2f",
@@ -304,7 +325,7 @@ int OnCalculate(const int rates_total,
             FinalSignalBuffer[i] = 0; FinalConfidenceBuffer[i] = 0; ReasonCodeBuffer[i] = REASON_NONE;
             RawZEStrengthBuffer[i] = 0; RawSMCSignalBuffer[i] = 0; RawSMCConfidenceBuffer[i] = 0; RawBCBiasBuffer[i] = 0;
         }
-        return(0);
+return(rates_total);
     }
     
     int start_bar = rates_total - 2;
@@ -321,12 +342,12 @@ static long ccount=0;
 
 
 // --- Read effective globals ONCE per call ---
-int model   = (int)GlobalOrDefault("AAI/SB/ConfModel", (double)InpSB_ConfModel);
-double wb   = GlobalOrDefault("AAI/SB/W_BASE",          InpSB_W_BASE);
-double wbc  = GlobalOrDefault("AAI/SB/W_BC",            InpSB_W_BC);
-double wze  = GlobalOrDefault("AAI/SB/W_ZE",            InpSB_W_ZE);
-double wsmc = GlobalOrDefault("AAI/SB/W_SMC",           InpSB_W_SMC);
-double cpen = GlobalOrDefault("AAI/SB/ConflictPenalty", InpSB_ConflictPenalty);
+int model   = (int)GlobalOrDefault("ConfModel", (double)InpSB_ConfModel);
+double wb   = GlobalOrDefault("W_BASE",          InpSB_W_BASE);
+double wbc  = GlobalOrDefault("W_BC",            InpSB_W_BC);
+double wze  = GlobalOrDefault("W_ZE",            InpSB_W_ZE);
+double wsmc = GlobalOrDefault("W_SMC",           InpSB_W_SMC);
+double cpen = GlobalOrDefault("ConflictPenalty", InpSB_ConflictPenalty);
 
 for(int i = start_bar; i >= 1; i--)
 {
@@ -442,54 +463,98 @@ if(model == 1) // Geometric Model
    double wsum = 0.0;
    double logsum = 0.0;
 
-   // Base always included
-// Base is a FLOOR, not a probability
-double p_base = MathMax(eps, MathMin(1.0, 0.5 + (double)SB_BaseConf / 200.0));
+   // Base always included (Base is a FLOOR, not a probability)
+   double p_base = MathMax(eps, MathMin(1.0, 0.5 + (double)SB_BaseConf / 200.0));
    wsum += wb;
    logsum += wb * MathLog(p_base);
 
-   // BC: only include if it actually has a bias (non-zero)
+   // BC
    if(SB_UseBC && MathAbs(rawBCBias) > 1e-6)
    {
-      // expect rawBCBias ~ -1..+1. If yours is different scale, adjust here.
       double bc_dir = rawBCBias * finalSignal; // aligned positive, conflict negative
       bc_dir = MathMax(-1.0, MathMin(1.0, bc_dir));
-
-      // map [-1..+1] -> [0..1]
-      double p_bc = 0.5 + 0.5 * bc_dir;
+      double p_bc = 0.5 + 0.5 * bc_dir;        // map [-1..+1] -> [0..1]
       p_bc = MathMax(eps, MathMin(1.0, p_bc));
-
       wsum += wbc;
       logsum += wbc * MathLog(p_bc);
    }
 
-   // ZE: only include if there is zone strength
+   // ZE
    if(SB_UseZE && rawZEStrength > 0.0)
    {
-// Soft ZE curve: strength 4–10 → probability 0.55–0.95
-double p_ze = 0.45 + 0.05 * MathMin(10.0, rawZEStrength);
-p_ze = MathMax(eps, MathMin(1.0, p_ze));
+      double p_ze = 0.45 + 0.05 * MathMin(10.0, rawZEStrength); // strength 4–10 → ~0.65–0.95
+      p_ze = MathMax(eps, MathMin(1.0, p_ze));
       wsum += wze;
       logsum += wze * MathLog(p_ze);
    }
 
-   // SMC: only include if SMC actually fired a signal
+   // SMC
    if(SB_UseSMC && rawSMCSignal != 0.0)
    {
-// SMC confidence is supportive, not absolute
-double smc01 = 0.6 + 0.04 * MathMin(10.0, rawSMCConfidence);
-smc01 = MathMax(eps, MathMin(1.0, smc01));
-      double p_smc = (rawSMCSignal * finalSignal > 0.0) ? smc01 : (smc01 * cpen); // conflict penalized, not nuked
-
+      double smc01 = 0.6 + 0.04 * MathMin(10.0, rawSMCConfidence);
+      smc01 = MathMax(eps, MathMin(1.0, smc01));
+      double p_smc = (rawSMCSignal * finalSignal > 0.0) ? smc01 : (smc01 * cpen);
       wsum += wsmc;
       logsum += wsmc * MathLog(MathMax(eps, MathMin(1.0, p_smc)));
    }
 
    double p_geom = MathExp(logsum / MathMax(eps, wsum));
    finalConfidence = MathMax(0.0, MathMin(100.0, p_geom * 100.0));
-   // Safety floor: confidence cannot drop below base
-double base_floor = SB_BaseConf;
-finalConfidence = MathMax(finalConfidence, base_floor);
+
+   // Safety floor: cannot drop below base
+   finalConfidence = MathMax(finalConfidence, (double)SB_BaseConf);
+
+   // Elite boost
+   if(
+      rawZEStrength >= 9.0 &&
+      rawSMCSignal != 0.0 &&
+      rawSMCSignal == finalSignal &&
+      rawSMCConfidence >= 8.0 &&
+      MathAbs(rawBCBias) < 1e-6
+   )
+      finalConfidence += Inp_SB_EliteBoost;
+
+   finalConfidence = MathMin(finalConfidence, 100.0);
+}
+else // Additive Model
+{
+   finalConfidence = (double)SB_BaseConf;
+
+   bool conflict = false;
+
+   // ZE adds confidence only if strong enough
+   if(SB_UseZE && rawZEStrength >= SB_MinZoneStrength)
+      finalConfidence += SB_Bonus_ZE;
+
+   // BC adds if aligned, flags conflict otherwise
+   if(SB_UseBC && MathAbs(rawBCBias) > 1e-6)
+   {
+      if(rawBCBias * finalSignal > 0.0) finalConfidence += SB_Bonus_BC;
+      else conflict = true;
+   }
+
+   // SMC adds if aligned, flags conflict otherwise
+   if(SB_UseSMC && rawSMCSignal != 0.0)
+   {
+      if(rawSMCSignal * finalSignal > 0.0) finalConfidence += SB_Bonus_SMC;
+      else conflict = true;
+   }
+
+   if(conflict)
+      finalConfidence *= cpen;
+
+   // Elite boost
+   if(
+      rawZEStrength >= 9.0 &&
+      rawSMCSignal != 0.0 &&
+      rawSMCSignal == finalSignal &&
+      rawSMCConfidence >= 8.0 &&
+      MathAbs(rawBCBias) < 1e-6
+   )
+      finalConfidence += Inp_SB_EliteBoost;
+
+   finalConfidence = MathMax(0.0, MathMin(100.0, finalConfidence));
+
 
    // --- Elite confluence boost (non-normalized) ---
 if(
