@@ -823,11 +823,18 @@ double ComputePositionRiskPct(const ulong ticket)
    const int    typ = (int)PositionGetInteger(POSITION_TYPE);
    if(sl <= 0.0 || vol <= 0.0) return 0.0;
 
-   const double dist_pts = MathAbs( (typ==POSITION_TYPE_BUY ? op-sl : sl-op) ) / _Point;
-   const double tick_val = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
-   const double tick_sz  = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
-   const double money_per_point = (tick_sz > 0.0 ? (tick_val/tick_sz) : tick_val) * vol;
-   const double money_risk = dist_pts * money_per_point;
+const double pt = SymbolInfoDouble(sym, SYMBOL_POINT);
+const double dist_pts = (pt > 0.0 ? MathAbs((typ==POSITION_TYPE_BUY ? op-sl : sl-op)) / pt : 0.0);
+
+const double tick_val = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
+const double tick_sz  = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
+
+// value of 1 point per 1 lot, then scale by volume
+const double point_value = (tick_sz > 0.0 && pt > 0.0) ? (tick_val * (pt / tick_sz)) : tick_val;
+const double money_per_point = point_value * vol;
+
+const double money_risk = dist_pts * money_per_point;
+
    const double eq = AccountInfoDouble(ACCOUNT_EQUITY);
    return (eq > 0.0 ? 100.0 * money_risk / eq : 0.0);
 }
