@@ -62,7 +62,7 @@ input int  SB_WarmupBars      = 150;
 input int  SB_FastMA          = 5;
 input int  SB_SlowMA          = 12;
 input int  SB_MinZoneStrength = 4;
-input bool EnableDebugLogging = true;
+input bool EnableDebugLogging = false;
 
 //--- Confluence Bonuses (for Additive model) ---
 input group "--- Additive Model Bonuses ---"
@@ -234,39 +234,41 @@ SMC_handle = iCustom(_Symbol,_Period,AAI_Ind("AAI_Indicator_SMC"),
     double tmp[1];
 
 if(BC_handle != INVALID_HANDLE)
-{
-for(int bi=0; bi<1; bi++)
-   {
-      ResetLastError();
-      int got = CopyBuffer(BC_handle, bi, 1, 1, tmp);
-      PrintFormat("[SB_PROBE] BC buf=%d got=%d val=%.5f err=%d", bi, got, (got>0?tmp[0]:0.0), GetLastError());
-   }
-}
+    {
+       for(int bi=0; bi<1; bi++)
+       {
+          ResetLastError();
+          int got = CopyBuffer(BC_handle, bi, 1, 1, tmp);
+          // <--- WRAPPED
+          if(EnableDebugLogging)
+             PrintFormat("[SB_PROBE] BC buf=%d got=%d val=%.5f err=%d", bi, got, (got>0?tmp[0]:0.0), GetLastError());
+       }
+    }
 
-if(ZE_handle != INVALID_HANDLE)
-{
-for(int bi=0; bi<1; bi++)
-   {
-      ResetLastError();
-      int got = CopyBuffer(ZE_handle, bi, 1, 1, tmp);
-      PrintFormat("[SB_PROBE] ZE buf=%d got=%d val=%.5f err=%d", bi, got, (got>0?tmp[0]:0.0), GetLastError());
-   }
-}
-if(SMC_handle != INVALID_HANDLE)
-{
-   for(int bi=0; bi<3; bi++) // 0=sig, 1=conf, 2=reason (adjust if needed)
-   {
-      ResetLastError();
-      int got = CopyBuffer(SMC_handle, bi, 1, 1, tmp);
-      PrintFormat("[SB_PROBE] SMC buf=%d got=%d val=%.5f err=%d", bi, got, (got>0?tmp[0]:0.0), GetLastError());
-   }
-}
-
+    if(ZE_handle != INVALID_HANDLE)
+    {
+       for(int bi=0; bi<1; bi++)
+       {
+          ResetLastError();
+          int got = CopyBuffer(ZE_handle, bi, 1, 1, tmp);
+          // <--- WRAPPED
+          if(EnableDebugLogging)
+             PrintFormat("[SB_PROBE] ZE buf=%d got=%d val=%.5f err=%d", bi, got, (got>0?tmp[0]:0.0), GetLastError());
+       }
+    }
+    if(SMC_handle != INVALID_HANDLE)
+    {
+       for(int bi=0; bi<3; bi++) // 0=sig, 1=conf, 2=reason (adjust if needed)
+       {
+          ResetLastError();
+          int got = CopyBuffer(SMC_handle, bi, 1, 1, tmp);
+          // <--- WRAPPED
+          if(EnableDebugLogging)
+             PrintFormat("[SB_PROBE] SMC buf=%d got=%d val=%.5f err=%d", bi, got, (got>0?tmp[0]:0.0), GetLastError());
+       }
+    }
 
     return(INIT_SUCCEEDED);
-    
-    
-    
 }
 
 //+------------------------------------------------------------------+
@@ -346,47 +348,58 @@ for(int i = start_bar; i >= 1; i--)
         }
 
 // --- 2. Read Raw Data from Foundational Indicators (with diagnostics) ---
-if(SB_UseZE && ZE_handle != INVALID_HANDLE)
-{
-   double v[1];
-   ResetLastError();
-   int got = CopyBuffer(ZE_handle, 0, i, 1, v);
-   if(got <= 0)
-      PrintFormat("[SB_DBG] ZE CopyBuffer fail i=%d err=%d", i, GetLastError());
-   else
-      rawZEStrength = v[0];
-}
+        if(SB_UseZE && ZE_handle != INVALID_HANDLE)
+        {
+           double v[1];
+           ResetLastError();
+           int got = CopyBuffer(ZE_handle, 0, i, 1, v);
+           if(got <= 0) {
+              // <--- WRAPPED Option A
+              if(EnableDebugLogging)
+                 PrintFormat("[SB_DBG] ZE CopyBuffer fail i=%d err=%d", i, GetLastError());
+           } else {
+              rawZEStrength = v[0];
+           }
+        }
 
-if(SB_UseBC && BC_handle != INVALID_HANDLE)
-{
-   double v[1];
-   ResetLastError();
-   int got = CopyBuffer(BC_handle, 0, i, 1, v);
-   if(got <= 0)
-      PrintFormat("[SB_DBG] BC CopyBuffer fail i=%d err=%d", i, GetLastError());
-   else
-      rawBCBias = v[0];
-}
+        if(SB_UseBC && BC_handle != INVALID_HANDLE)
+        {
+           double v[1];
+           ResetLastError();
+           int got = CopyBuffer(BC_handle, 0, i, 1, v);
+           if(got <= 0) {
+              // <--- WRAPPED Option A
+              if(EnableDebugLogging)
+                 PrintFormat("[SB_DBG] BC CopyBuffer fail i=%d err=%d", i, GetLastError());
+           } else {
+              rawBCBias = v[0];
+           }
+        }
 
-if(SB_UseSMC && SMC_handle != INVALID_HANDLE)
-{
-   double v[1];
+        if(SB_UseSMC && SMC_handle != INVALID_HANDLE)
+        {
+           double v[1];
 
-   ResetLastError();
-   int got0 = CopyBuffer(SMC_handle, 0, i, 1, v);
-   if(got0 <= 0)
-      PrintFormat("[SB_DBG] SMC buf0(signal) CopyBuffer fail i=%d err=%d", i, GetLastError());
-   else
-      rawSMCSignal = v[0];
+           ResetLastError();
+           int got0 = CopyBuffer(SMC_handle, 0, i, 1, v);
+           if(got0 <= 0) {
+              // <--- WRAPPED Option A
+              if(EnableDebugLogging)
+                 PrintFormat("[SB_DBG] SMC buf0(signal) CopyBuffer fail i=%d err=%d", i, GetLastError());
+           } else {
+              rawSMCSignal = v[0];
+           }
 
-   ResetLastError();
-   int got1 = CopyBuffer(SMC_handle, 1, i, 1, v);
-   if(got1 <= 0)
-      PrintFormat("[SB_DBG] SMC buf1(conf) CopyBuffer fail i=%d err=%d", i, GetLastError());
-   else
-      rawSMCConfidence = v[0];
-}
-
+           ResetLastError();
+           int got1 = CopyBuffer(SMC_handle, 1, i, 1, v);
+           if(got1 <= 0) {
+              // <--- WRAPPED Option A
+              if(EnableDebugLogging)
+                 PrintFormat("[SB_DBG] SMC buf1(conf) CopyBuffer fail i=%d err=%d", i, GetLastError());
+           } else {
+              rawSMCConfidence = v[0];
+           }
+        }
 // --- 2b. Smart Entry Pricing Logic (Option B) ---
         double smartEntryPrice = close[i]; // Default to Market (Close)
         
