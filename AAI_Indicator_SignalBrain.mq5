@@ -10,7 +10,7 @@
 #property indicator_chart_window
 #property version "4.3"
 
-#define SB_BUILD_TAG  "SB 4.3.0"
+#define SB_BUILD_TAG "SB 4.3.0+TAG999"
 
 // --- Indicator Buffers (Expanded to 7) ---
 #property indicator_buffers 7
@@ -174,13 +174,23 @@ static datetime g_last_smc_fail_log_time = 0;
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   // Effective params (globals override inputs)
-   int model   = (int)GlobalOrDefault("ConfModel", (double)InpSB_ConfModel);
-   double wb   = GlobalOrDefault("W_BASE",          InpSB_W_BASE);
-   double wbc  = GlobalOrDefault("SB/W_BC",            InpSB_W_BC);
-   double wze  = GlobalOrDefault("SB/W_ZE",            InpSB_W_ZE);
-   double wsmc = GlobalOrDefault("SB/W_SMC",           InpSB_W_SMC);
-   double cpen = GlobalOrDefault("SB/ConflictPenalty", InpSB_ConflictPenalty);
+// Effective params (EA pushes namespaced globals; fall back to indicator inputs)
+const string kModel = SB_GVKey("ConfModel");
+const string kWb    = SB_GVKey("W_BASE");
+const string kWbc   = SB_GVKey("W_BC");
+const string kWze   = SB_GVKey("W_ZE");
+const string kWsmc  = SB_GVKey("W_SMC");
+const string kCpen  = SB_GVKey("ConflictPenalty");
+
+int model   = (int)GlobalOrDefault(SB_GVKey("ConfModel"), (double)InpSB_ConfModel);
+double wb   = GlobalOrDefault(SB_GVKey("W_BASE"),        InpSB_W_BASE);
+double wbc  = GlobalOrDefault(SB_GVKey("W_BC"),          InpSB_W_BC);
+double wze  = GlobalOrDefault(SB_GVKey("W_ZE"),          InpSB_W_ZE);
+double wsmc = GlobalOrDefault(SB_GVKey("W_SMC"),         InpSB_W_SMC);
+double cpen = GlobalOrDefault(SB_GVKey("ConflictPenalty"), InpSB_ConflictPenalty);
+
+
+
 
    PrintFormat("[SB_INIT] %s name=%s path=%s now=%s input_model=%d input_wb=%.2f input_wbc=%.2f input_wze=%.2f input_wsmc=%.2f input_cpen=%.2f",
                SB_BUILD_TAG,
@@ -190,12 +200,15 @@ int OnInit()
                (int)InpSB_ConfModel, InpSB_W_BASE, InpSB_W_BC, InpSB_W_ZE, InpSB_W_SMC, InpSB_ConflictPenalty);
 
    PrintFormat("[SB_MODEL] gv_model=%.0f eff_model=%d wb=%.2f wbc=%.2f wze=%.2f wsmc=%.2f cpen=%.2f",
-               GlobalVariableCheck("ConfModel") ? GlobalVariableGet("ConfModel") : -1.0,
+GlobalVariableCheck(SB_GVKey("ConfModel")) ? GlobalVariableGet(SB_GVKey("ConfModel")) : -1.0,
                model, wb, wbc, wze, wsmc, cpen);
             
-     PrintFormat("[SB_ARGS] BaseConf=%d EliteBoost=%.1f BC=%d/%d ZE=%.1f SMC_FVGmin=%.2f",
-            SB_BaseConf, Inp_SB_EliteBoost, SB_BC_FastMA, SB_BC_SlowMA,
-            SB_ZE_MinImpulseMovePips, SB_SMC_FVG_MinPips);
+PrintFormat("[SB_ARGS] BaseConf=%d EliteBoost=%.1f BC_MA=%d/%d ZE_MinImpulse=%.2f SMC(FVG/OB/BOS)=%d/%d/%d FVGmin=%.2f",
+            SB_BaseConf, Inp_SB_EliteBoost,
+            SB_BC_FastMA, SB_BC_SlowMA,
+            SB_ZE_MinImpulseMovePips,
+            (int)SB_SMC_UseFVG, (int)SB_SMC_UseOB, (int)SB_SMC_UseBOS,
+            SB_SMC_FVG_MinPips);
        
             
     // --- Bind all 7 data buffers ---
@@ -342,12 +355,21 @@ static long ccount=0;
 
 
 // --- Read effective globals ONCE per call ---
-int model   = (int)GlobalOrDefault("ConfModel", (double)InpSB_ConfModel);
-double wb   = GlobalOrDefault("W_BASE",          InpSB_W_BASE);
-double wbc  = GlobalOrDefault("W_BC",            InpSB_W_BC);
-double wze  = GlobalOrDefault("W_ZE",            InpSB_W_ZE);
-double wsmc = GlobalOrDefault("W_SMC",           InpSB_W_SMC);
-double cpen = GlobalOrDefault("ConflictPenalty", InpSB_ConflictPenalty);
+const string kModel = SB_GVKey("ConfModel");
+const string kWb    = SB_GVKey("W_BASE");
+const string kWbc   = SB_GVKey("W_BC");
+const string kWze   = SB_GVKey("W_ZE");
+const string kWsmc  = SB_GVKey("W_SMC");
+const string kCpen  = SB_GVKey("ConflictPenalty");
+
+int model   = (int)GlobalOrDefault(SB_GVKey("ConfModel"), (double)InpSB_ConfModel);
+double wb   = GlobalOrDefault(SB_GVKey("W_BASE"),        InpSB_W_BASE);
+double wbc  = GlobalOrDefault(SB_GVKey("W_BC"),          InpSB_W_BC);
+double wze  = GlobalOrDefault(SB_GVKey("W_ZE"),          InpSB_W_ZE);
+double wsmc = GlobalOrDefault(SB_GVKey("W_SMC"),         InpSB_W_SMC);
+double cpen = GlobalOrDefault(SB_GVKey("ConflictPenalty"), InpSB_ConflictPenalty);
+
+
 
 for(int i = start_bar; i >= 1; i--)
 {
