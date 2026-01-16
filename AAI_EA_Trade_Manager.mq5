@@ -2244,6 +2244,14 @@ string SB_GVKey_EA(const string leaf) { return SB_GVPrefix_EA() + leaf; }
 //+------------------------------------------------------------------+
 void AAI_PushSignalBrainGlobals()
 {
+// Kill legacy keys that previously overrode SB and cause "inputs do nothing"
+string legacy[] = {
+   "ConfModel","W_BASE","W_BC","W_ZE","W_SMC","ConflictPenalty",
+   "SB/W_BC","SB/W_ZE","SB/W_SMC","SB/ConflictPenalty"
+};
+for(int i=0;i<ArraySize(legacy);i++)
+   if(GlobalVariableCheck(legacy[i])) GlobalVariableDel(legacy[i]);
+
 GlobalVariableSet(SB_GVKey_EA("ConfModel"),        (double)InpSB_ConfModel);
 GlobalVariableSet(SB_GVKey_EA("W_BASE"),           InpSB_W_BASE);
 GlobalVariableSet(SB_GVKey_EA("W_BC"),             InpSB_W_BC);
@@ -3322,7 +3330,6 @@ if(!EnsureFastATR())
     
     ArrayInitialize(AAI_posagg_id,  0);
 ArrayInitialize(AAI_posagg_net, 0.0);
-   AAI_PushSignalBrainGlobals();   // <--- add this
 
     return(INIT_SUCCEEDED);
 }
