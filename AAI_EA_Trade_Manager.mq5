@@ -2232,11 +2232,13 @@ string AAI_TfLabelFromMinutes(const int tf_minutes)
 
 string SB_GVPrefix_EA()
 {
+   // IMPORTANT: must match SignalBrain's TF label when SignalTimeframe == PERIOD_CURRENT
    return StringFormat("AAI/SB/%I64d/%s/%s/",
                        (long)AccountInfoInteger(ACCOUNT_LOGIN),
                        _Symbol,
-                       AAI_TfLabelFromMinutes((int)SignalTimeframe));
+                       CurrentTfLabel());
 }
+
 string SB_GVKey_EA(const string leaf) { return SB_GVPrefix_EA() + leaf; }
 
 //+------------------------------------------------------------------+
@@ -2258,6 +2260,18 @@ GlobalVariableSet(SB_GVKey_EA("W_BC"),             InpSB_W_BC);
 GlobalVariableSet(SB_GVKey_EA("W_ZE"),             InpSB_W_ZE);
 GlobalVariableSet(SB_GVKey_EA("W_SMC"),            InpSB_W_SMC);
 GlobalVariableSet(SB_GVKey_EA("ConflictPenalty"),  InpSB_ConflictPenalty);
+
+// --- Core SB toggles (EA is the source of truth) ---
+GlobalVariableSet(SB_GVKey_EA("UseZE"),  SB_UseZE  ? 1.0 : 0.0);
+GlobalVariableSet(SB_GVKey_EA("UseBC"),  SB_UseBC  ? 1.0 : 0.0);
+GlobalVariableSet(SB_GVKey_EA("UseSMC"), SB_UseSMC ? 1.0 : 0.0);
+
+// --- SB diagnostics / test flags ---
+GlobalVariableSet(SB_GVKey_EA("EnableDebugLogging"), SB_EnableDebug ? 1.0 : 0.0);
+GlobalVariableSet(SB_GVKey_EA("SafeTest"),           SB_SafeTest   ? 1.0 : 0.0);
+
+
+
 //
 GlobalVariableSet(SB_GVKey_EA("BaseConf"), (double)SB_BaseConf);
 GlobalVariableSet(SB_GVKey_EA("EliteBoost"), Inp_SB_EliteBoost);
@@ -2929,12 +2943,14 @@ void ManageSmartExits()
    // Copy from SignalBrain:
    //  - buffer 1: confidence
    //  - buffer 0: direction signal
-   // Use shift=1 (last CLOSED bar) as base
-   if(CopyBuffer(sb_handle, 1, 1, count, buf_conf) < count)
-      return;
+const int sb_shift = MathMax(1, SB_ReadShift); // keep exits aligned with entry SB read shift
 
-   if(CopyBuffer(sb_handle, 0, 1, count, buf_sig) < count)
-      return;
+if(CopyBuffer(sb_handle, 1, sb_shift, count, buf_conf) < count)
+   return;
+
+if(CopyBuffer(sb_handle, 0, sb_shift, count, buf_sig) < count)
+   return;
+
 // For each Alfred position on this symbol, check decay + (optional) reversal
 ulong tickets[];
 if(GetMyPositionTickets(_Symbol, (long)MagicNumber, tickets) <= 0)
