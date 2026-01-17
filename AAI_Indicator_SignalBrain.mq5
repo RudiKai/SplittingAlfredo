@@ -189,6 +189,20 @@ double wze  = GlobalOrDefault(SB_GVKey("W_ZE"),          InpSB_W_ZE);
 double wsmc = GlobalOrDefault(SB_GVKey("W_SMC"),         InpSB_W_SMC);
 double cpen = GlobalOrDefault(SB_GVKey("ConflictPenalty"), InpSB_ConflictPenalty);
 
+int    eff_baseConf   = (int)GlobalOrDefault(SB_GVKey("BaseConf"),        (double)SB_BaseConf);
+double eff_eliteBoost =      GlobalOrDefault(SB_GVKey("EliteBoost"),      (double)Inp_SB_EliteBoost);
+
+int    eff_bcFast     = (int)GlobalOrDefault(SB_GVKey("BC_FastMA"),       (double)SB_BC_FastMA);
+int    eff_bcSlow     = (int)GlobalOrDefault(SB_GVKey("BC_SlowMA"),       (double)SB_BC_SlowMA);
+
+double eff_zeMinImp   =      GlobalOrDefault(SB_GVKey("ZE_MinImpulse"),   (double)SB_ZE_MinImpulseMovePips);
+
+double eff_fvgMin     =      GlobalOrDefault(SB_GVKey("SMC_FVG_MinPips"), (double)SB_SMC_FVG_MinPips);
+int    eff_obLb       = (int)GlobalOrDefault(SB_GVKey("SMC_OB_Lookback"), (double)SB_SMC_OB_Lookback);
+int    eff_bosLb      = (int)GlobalOrDefault(SB_GVKey("SMC_BOS_Lookback"),(double)SB_SMC_BOS_Lookback);
+
+//
+
 
 
 
@@ -202,13 +216,40 @@ double cpen = GlobalOrDefault(SB_GVKey("ConflictPenalty"), InpSB_ConflictPenalty
    PrintFormat("[SB_MODEL] gv_model=%.0f eff_model=%d wb=%.2f wbc=%.2f wze=%.2f wsmc=%.2f cpen=%.2f",
 GlobalVariableCheck(SB_GVKey("ConfModel")) ? GlobalVariableGet(SB_GVKey("ConfModel")) : -1.0,
                model, wb, wbc, wze, wsmc, cpen);
+// --- Effective SB_ARGS (optional GV overrides; otherwise inputs) ---
+int    effBaseConf = (int)GlobalOrDefault(SB_GVKey("BaseConf"), (double)SB_BaseConf);
+double effElite    =      GlobalOrDefault(SB_GVKey("EliteBoost"), Inp_SB_EliteBoost);
+
+int    effBCFast   = (int)GlobalOrDefault(SB_GVKey("BC_FastMA"), (double)SB_BC_FastMA);
+int    effBCSlow   = (int)GlobalOrDefault(SB_GVKey("BC_SlowMA"), (double)SB_BC_SlowMA);
+
+double effZEmin    =      GlobalOrDefault(SB_GVKey("ZE_MinImpulseMovePips"), SB_ZE_MinImpulseMovePips);
+
+bool   effFVG      = (GlobalOrDefault(SB_GVKey("SMC_UseFVG"), SB_SMC_UseFVG?1.0:0.0) > 0.5);
+bool   effOB       = (GlobalOrDefault(SB_GVKey("SMC_UseOB"),  SB_SMC_UseOB ?1.0:0.0) > 0.5);
+bool   effBOS      = (GlobalOrDefault(SB_GVKey("SMC_UseBOS"), SB_SMC_UseBOS?1.0:0.0) > 0.5);
+
+double effFVGmin   =      GlobalOrDefault(SB_GVKey("SMC_FVG_MinPips"), SB_SMC_FVG_MinPips);
+int    effOBLB     = (int)GlobalOrDefault(SB_GVKey("SMC_OB_Lookback"), (double)SB_SMC_OB_Lookback);
+int    effBOSLB    = (int)GlobalOrDefault(SB_GVKey("SMC_BOS_Lookback"), (double)SB_SMC_BOS_Lookback);
+
             
-PrintFormat("[SB_ARGS] BaseConf=%d EliteBoost=%.1f BC_MA=%d/%d ZE_MinImpulse=%.2f SMC(FVG/OB/BOS)=%d/%d/%d FVGmin=%.2f",
+PrintFormat("[SB_ARGS_INP] BaseConf=%d EliteBoost=%.1f BC_MA=%d/%d ZE_MinImpulse=%.2f SMC(FVG/OB/BOS)=%d/%d/%d FVGmin=%.2f OB_lb=%d BOS_lb=%d | ConfModel_inp=%d W_inp=%.2f/%.2f/%.2f/%.2f cpen_inp=%.2f",
             SB_BaseConf, Inp_SB_EliteBoost,
             SB_BC_FastMA, SB_BC_SlowMA,
             SB_ZE_MinImpulseMovePips,
             (int)SB_SMC_UseFVG, (int)SB_SMC_UseOB, (int)SB_SMC_UseBOS,
-            SB_SMC_FVG_MinPips);
+            SB_SMC_FVG_MinPips, SB_SMC_OB_Lookback, SB_SMC_BOS_Lookback,
+            (int)InpSB_ConfModel, InpSB_W_BASE, InpSB_W_BC, InpSB_W_ZE, InpSB_W_SMC, InpSB_ConflictPenalty);
+
+PrintFormat("[SB_ARGS_EFF] BaseConf=%d EliteBoost=%.1f BC_MA=%d/%d ZE_MinImpulse=%.2f SMC(FVG/OB/BOS)=%d/%d/%d FVGmin=%.2f OB_lb=%d BOS_lb=%d | ConfModel_eff=%d W_eff=%.2f/%.2f/%.2f/%.2f cpen_eff=%.2f",
+            effBaseConf, effElite,
+            effBCFast, effBCSlow,
+            effZEmin,
+            (int)effFVG, (int)effOB, (int)effBOS,
+            effFVGmin, effOBLB, effBOSLB,
+            model, wb, wbc, wze, wsmc, cpen);
+
        
             
     // --- Bind all 7 data buffers ---
@@ -237,8 +278,11 @@ PrintFormat("[SB_ARGS] BaseConf=%d EliteBoost=%.1f BC_MA=%d/%d ZE_MinImpulse=%.2
     IndicatorSetInteger(INDICATOR_DIGITS,0);
 
     // --- Create dependent indicator handles ---
-    fastMA_handle = iMA(_Symbol, _Period, SB_FastMA, 0, MODE_SMA, PRICE_CLOSE);
-    slowMA_handle = iMA(_Symbol, _Period, SB_SlowMA, 0, MODE_SMA, PRICE_CLOSE);
+int eff_fastMA = (int)GlobalOrDefault(SB_GVKey("FastMA"), (double)SB_FastMA);
+int eff_slowMA = (int)GlobalOrDefault(SB_GVKey("SlowMA"), (double)SB_SlowMA);
+
+fastMA_handle = iMA(_Symbol, _Period, eff_fastMA, 0, MODE_SMA, PRICE_CLOSE);
+slowMA_handle = iMA(_Symbol, _Period, eff_slowMA, 0, MODE_SMA, PRICE_CLOSE);
     if(fastMA_handle == INVALID_HANDLE || slowMA_handle == INVALID_HANDLE)
     {
         Print("[SB_ERR] Failed to create one or more MA handles.");
@@ -247,22 +291,25 @@ PrintFormat("[SB_ARGS] BaseConf=%d EliteBoost=%.1f BC_MA=%d/%d ZE_MinImpulse=%.2
 
     if(SB_UseZE)
     {
-        ZE_handle = iCustom(_Symbol, _Period, AAI_Ind("AAI_Indicator_ZoneEngine"), SB_ZE_MinImpulseMovePips, true);
+ZE_handle = iCustom(_Symbol, _Period, AAI_Ind("AAI_Indicator_ZoneEngine"), eff_zeMinImp, true);
         if(ZE_handle == INVALID_HANDLE) Print("[SB_WARN] Failed to create ZoneEngine handle.");
     }
     if(SB_UseBC)
     {
-        BC_handle = iCustom(_Symbol, _Period, AAI_Ind("AAI_Indicator_BiasCompass"), SB_BC_FastMA, SB_BC_SlowMA);
+BC_handle = iCustom(_Symbol, _Period, AAI_Ind("AAI_Indicator_BiasCompass"), eff_bcFast, eff_bcSlow);
         if(BC_handle == INVALID_HANDLE) Print("[SB_WARN] Failed to create BiasCompass handle.");
     }
     if(SB_UseSMC)
     {
 SMC_handle = iCustom(_Symbol,_Period,AAI_Ind("AAI_Indicator_SMC"),
-                     SB_SMC_UseFVG, SB_SMC_UseOB, SB_SMC_UseBOS,
-                     SB_WarmupBars,              // <-- INSERT THIS
-                     SB_SMC_FVG_MinPips,
-                     SB_SMC_OB_Lookback,
-                     SB_SMC_BOS_Lookback);
+                     (GlobalOrDefault(SB_GVKey("SMC_UseFVG"), SB_SMC_UseFVG?1.0:0.0) > 0.5),
+                     (GlobalOrDefault(SB_GVKey("SMC_UseOB"),  SB_SMC_UseOB ?1.0:0.0) > 0.5),
+                     (GlobalOrDefault(SB_GVKey("SMC_UseBOS"), SB_SMC_UseBOS?1.0:0.0) > 0.5),
+                     SB_WarmupBars,
+                     eff_fvgMin,
+                     eff_obLb,
+                     eff_bosLb);
+
         if(SMC_handle == INVALID_HANDLE) Print("[SB_WARN] Failed to create SMC handle.");
     }
     double tmp[1];
@@ -331,7 +378,9 @@ int OnCalculate(const int rates_total,
                 const long &volume[],
                 const int &spread[])
 {
-    if(rates_total < SB_WarmupBars)
+int eff_warmup = (int)GlobalOrDefault(SB_GVKey("WarmupBars"), (double)SB_WarmupBars);
+
+if(rates_total < eff_warmup)
     {
         for(int i = 0; i < rates_total; i++)
         {
@@ -369,6 +418,14 @@ double wze  = GlobalOrDefault(SB_GVKey("W_ZE"),          InpSB_W_ZE);
 double wsmc = GlobalOrDefault(SB_GVKey("W_SMC"),         InpSB_W_SMC);
 double cpen = GlobalOrDefault(SB_GVKey("ConflictPenalty"), InpSB_ConflictPenalty);
 
+
+int    eff_baseConf   = (int)GlobalOrDefault(SB_GVKey("BaseConf"), (double)SB_BaseConf);
+double eff_eliteBoost =      GlobalOrDefault(SB_GVKey("EliteBoost"), (double)Inp_SB_EliteBoost);
+
+int eff_minZone = (int)GlobalOrDefault(SB_GVKey("MinZoneStrength"), (double)SB_MinZoneStrength);
+int eff_bZE     = (int)GlobalOrDefault(SB_GVKey("Bonus_ZE"), (double)SB_Bonus_ZE);
+int eff_bBC     = (int)GlobalOrDefault(SB_GVKey("Bonus_BC"), (double)SB_Bonus_BC);
+int eff_bSMC    = (int)GlobalOrDefault(SB_GVKey("Bonus_SMC"), (double)SB_Bonus_SMC);
 
 
 for(int i = start_bar; i >= 1; i--)
@@ -486,7 +543,7 @@ if(model == 1) // Geometric Model
    double logsum = 0.0;
 
    // Base always included (Base is a FLOOR, not a probability)
-   double p_base = MathMax(eps, MathMin(1.0, 0.5 + (double)SB_BaseConf / 200.0));
+   double p_base = MathMax(eps, MathMin(1.0, 0.5 + (double)eff_baseConf / 200.0));
    wsum += wb;
    logsum += wb * MathLog(p_base);
 
@@ -524,7 +581,7 @@ if(model == 1) // Geometric Model
    finalConfidence = MathMax(0.0, MathMin(100.0, p_geom * 100.0));
 
    // Safety floor: cannot drop below base
-   finalConfidence = MathMax(finalConfidence, (double)SB_BaseConf);
+   finalConfidence = MathMax(finalConfidence, (double)eff_baseConf);
 
    // Elite boost
    if(
@@ -534,63 +591,50 @@ if(model == 1) // Geometric Model
       rawSMCConfidence >= 8.0 &&
       MathAbs(rawBCBias) < 1e-6
    )
-      finalConfidence += Inp_SB_EliteBoost;
+      finalConfidence += eff_eliteBoost;
 
    finalConfidence = MathMin(finalConfidence, 100.0);
 }
 else // Additive Model
 {
-   finalConfidence = (double)SB_BaseConf;
+   finalConfidence = (double)eff_baseConf;
 
    bool conflict = false;
 
    // ZE adds confidence only if strong enough
    if(SB_UseZE && rawZEStrength >= SB_MinZoneStrength)
-      finalConfidence += SB_Bonus_ZE;
+      finalConfidence += eff_bZE;
 
    // BC adds if aligned, flags conflict otherwise
    if(SB_UseBC && MathAbs(rawBCBias) > 1e-6)
    {
-      if(rawBCBias * finalSignal > 0.0) finalConfidence += SB_Bonus_BC;
+      if(rawBCBias * finalSignal > 0.0) finalConfidence += eff_bBC;
       else conflict = true;
    }
 
    // SMC adds if aligned, flags conflict otherwise
    if(SB_UseSMC && rawSMCSignal != 0.0)
    {
-      if(rawSMCSignal * finalSignal > 0.0) finalConfidence += SB_Bonus_SMC;
+      if(rawSMCSignal * finalSignal > 0.0) finalConfidence += eff_bSMC;
       else conflict = true;
    }
 
    if(conflict)
       finalConfidence *= cpen;
 
-   // Elite boost
-   if(
-      rawZEStrength >= 9.0 &&
-      rawSMCSignal != 0.0 &&
-      rawSMCSignal == finalSignal &&
-      rawSMCConfidence >= 8.0 &&
-      MathAbs(rawBCBias) < 1e-6
-   )
-      finalConfidence += Inp_SB_EliteBoost;
-
-   finalConfidence = MathMax(0.0, MathMin(100.0, finalConfidence));
-
-
-   // --- Elite confluence boost (non-normalized) ---
+// Elite boost (apply once)
 if(
    rawZEStrength >= 9.0 &&
    rawSMCSignal != 0.0 &&
    rawSMCSignal == finalSignal &&
    rawSMCConfidence >= 8.0 &&
-   MathAbs(rawBCBias) < 1e-6   // no bias conflict
+   MathAbs(rawBCBias) < 1e-6
 )
-{
-   finalConfidence += Inp_SB_EliteBoost; // e.g. 10–20
-}
+   finalConfidence += eff_eliteBoost;
 
-finalConfidence = MathMin(finalConfidence, 100.0);
+// Final clamp once
+finalConfidence = MathMax(0.0, MathMin(100.0, finalConfidence));
+
 
 }
 
