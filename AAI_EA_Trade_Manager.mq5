@@ -2258,7 +2258,32 @@ GlobalVariableSet(SB_GVKey_EA("W_BC"),             InpSB_W_BC);
 GlobalVariableSet(SB_GVKey_EA("W_ZE"),             InpSB_W_ZE);
 GlobalVariableSet(SB_GVKey_EA("W_SMC"),            InpSB_W_SMC);
 GlobalVariableSet(SB_GVKey_EA("ConflictPenalty"),  InpSB_ConflictPenalty);
+//
+GlobalVariableSet(SB_GVKey_EA("BaseConf"), (double)SB_BaseConf);
+GlobalVariableSet(SB_GVKey_EA("EliteBoost"), Inp_SB_EliteBoost);
 
+GlobalVariableSet(SB_GVKey_EA("BC_FastMA"), (double)SB_BC_FastMA);
+GlobalVariableSet(SB_GVKey_EA("BC_SlowMA"), (double)SB_BC_SlowMA);
+
+GlobalVariableSet(SB_GVKey_EA("ZE_MinImpulseMovePips"), SB_ZE_MinImpulseMovePips);
+
+GlobalVariableSet(SB_GVKey_EA("SMC_UseFVG"), SB_SMC_UseFVG ? 1.0 : 0.0);
+GlobalVariableSet(SB_GVKey_EA("SMC_UseOB"),  SB_SMC_UseOB  ? 1.0 : 0.0);
+GlobalVariableSet(SB_GVKey_EA("SMC_UseBOS"), SB_SMC_UseBOS ? 1.0 : 0.0);
+
+GlobalVariableSet(SB_GVKey_EA("SMC_FVG_MinPips"), SB_SMC_FVG_MinPips);
+GlobalVariableSet(SB_GVKey_EA("SMC_OB_Lookback"), (double)SB_SMC_OB_Lookback);
+GlobalVariableSet(SB_GVKey_EA("SMC_BOS_Lookback"), (double)SB_SMC_BOS_Lookback);
+
+GlobalVariableSet(SB_GVKey_EA("FastMA"), (double)SB_FastMA);
+GlobalVariableSet(SB_GVKey_EA("SlowMA"), (double)SB_SlowMA);
+
+GlobalVariableSet(SB_GVKey_EA("WarmupBars"), (double)SB_WarmupBars);
+
+GlobalVariableSet(SB_GVKey_EA("MinZoneStrength"), (double)SB_MinZoneStrength);
+GlobalVariableSet(SB_GVKey_EA("Bonus_ZE"), (double)SB_Bonus_ZE);
+GlobalVariableSet(SB_GVKey_EA("Bonus_BC"), (double)SB_Bonus_BC);
+GlobalVariableSet(SB_GVKey_EA("Bonus_SMC"), (double)SB_Bonus_SMC);
 
 
    PrintFormat("[SB_GLOBALS] model=%d W_BASE=%.2f W_BC=%.2f W_ZE=%.2f W_SMC=%.2f cpen=%.2f",
@@ -3188,35 +3213,22 @@ PrintFormat("[EA_SB_INPUTS] base=%.1f bze=%.1f bbc=%.1f bsmc=%.1f model=%d wb=%.
    (int)InpSB_ConfModel, InpSB_W_BASE, InpSB_W_BC, InpSB_W_ZE, InpSB_W_SMC, InpSB_ConflictPenalty
 );
 
-AAI_PushSignalBrainGlobals(); 
-sb_handle = iCustom(_Symbol, (ENUM_TIMEFRAMES)SignalTimeframe, AAI_Ind("AAI_Indicator_SignalBrain"),
-   // Core SB Settings
-   SB_SafeTest, SB_UseZE, SB_UseBC, SB_UseSMC,
-   SB_WarmupBars, SB_FastMA, SB_SlowMA,
-   SB_MinZoneStrength, SB_EnableDebug,
-   // Additive bonuses
-   SB_Bonus_ZE, SB_Bonus_BC, SB_Bonus_SMC,
-   SB_BaseConf,
-   
-      Inp_SB_EliteBoost,  
-      
-   // BC pass-through
-   SB_BC_FastMA, SB_BC_SlowMA,
-   // ZE pass-through
-   SB_ZE_MinImpulseMovePips,
-   // SMC pass-through
-   SB_SMC_UseFVG, SB_SMC_UseOB, SB_SMC_UseBOS,
-   SB_SMC_FVG_MinPips, SB_SMC_OB_Lookback, SB_SMC_BOS_Lookback,
 
-   // ✅ Confluence model (MUST be last if it's last in indicator inputs)
-   InpSB_ConfModel,
-   InpSB_W_BASE,
-   InpSB_W_BC,
-   InpSB_W_ZE,
-   InpSB_W_SMC,
-   InpSB_ConflictPenalty
-);
 
+
+AAI_PushSignalBrainGlobals();
+
+PrintFormat("[EA_SB_SENTINEL] BaseConf=%d EliteBoost=%.2f BC_MA=%d/%d ZE_MinImpulse=%.2f OB_lb=%d BOS_lb=%d FVGmin=%.2f",
+            SB_BaseConf, Inp_SB_EliteBoost,
+           SB_BC_FastMA, SB_BC_SlowMA,
+           SB_ZE_MinImpulseMovePips,
+           SB_SMC_OB_Lookback, SB_SMC_BOS_Lookback,
+           SB_SMC_FVG_MinPips);
+           
+sb_handle = iCustom(_Symbol,
+                    (ENUM_TIMEFRAMES)SignalTimeframe,
+                    AAI_Ind("AAI_Indicator_SignalBrain"));
+                    
 PrintFormat("[PB_INPUTS] RegimeMinConfDelta MID_CHAOS=%d  RegimeRiskMult MID_CHAOS=%.2f",
             InpPB_RegimeMinConfDelta_MID_CHAOS,
             InpPB_RegimeRiskMult_MID_CHAOS);
