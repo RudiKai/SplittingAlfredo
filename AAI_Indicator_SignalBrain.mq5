@@ -144,13 +144,21 @@ string AAI_TfLabelFromMinutes(const int tf_minutes)
    return IntegerToString(tf_minutes); // fallback
 }
 
+string SB_TfLabelFromEnum(ENUM_TIMEFRAMES tf)
+{
+   string s = EnumToString(tf);  // e.g. "PERIOD_M15"
+   int p = StringFind(s, "PERIOD_");
+   return (p == 0 ? StringSubstr(s, 7) : s); // -> "M15"
+}
+
 string SB_GVPrefix()
 {
    return StringFormat("AAI/SB/%I64d/%s/%s/",
                        (long)AccountInfoInteger(ACCOUNT_LOGIN),
                        _Symbol,
-                       AAI_TfLabelFromMinutes(Period()));
+                       SB_TfLabelFromEnum((ENUM_TIMEFRAMES)_Period));
 }
+
 
 string SB_GVKey(const string leaf) { return SB_GVPrefix() + leaf; }
 
@@ -195,11 +203,21 @@ double eff_eliteBoost =      GlobalOrDefault(SB_GVKey("EliteBoost"),      (doubl
 int    eff_bcFast     = (int)GlobalOrDefault(SB_GVKey("BC_FastMA"),       (double)SB_BC_FastMA);
 int    eff_bcSlow     = (int)GlobalOrDefault(SB_GVKey("BC_SlowMA"),       (double)SB_BC_SlowMA);
 
-double eff_zeMinImp   =      GlobalOrDefault(SB_GVKey("ZE_MinImpulse"),   (double)SB_ZE_MinImpulseMovePips);
+double eff_zeMinImp   =      GlobalOrDefault(SB_GVKey("ZE_MinImpulseMovePips"), (double)SB_ZE_MinImpulseMovePips);
 
 double eff_fvgMin     =      GlobalOrDefault(SB_GVKey("SMC_FVG_MinPips"), (double)SB_SMC_FVG_MinPips);
 int    eff_obLb       = (int)GlobalOrDefault(SB_GVKey("SMC_OB_Lookback"), (double)SB_SMC_OB_Lookback);
 int    eff_bosLb      = (int)GlobalOrDefault(SB_GVKey("SMC_BOS_Lookback"),(double)SB_SMC_BOS_Lookback);
+
+// --- EA-driven toggles / warmup / debug (must exist in OnInit too) ---
+int  eff_warmup = (int)GlobalOrDefault(SB_GVKey("WarmupBars"), (double)SB_WarmupBars);
+
+bool eff_useZE  = (GlobalOrDefault(SB_GVKey("UseZE"),  (SB_UseZE  ? 1.0 : 0.0)) > 0.5);
+bool eff_useBC  = (GlobalOrDefault(SB_GVKey("UseBC"),  (SB_UseBC  ? 1.0 : 0.0)) > 0.5);
+bool eff_useSMC = (GlobalOrDefault(SB_GVKey("UseSMC"), (SB_UseSMC ? 1.0 : 0.0)) > 0.5);
+
+bool eff_debug  = (GlobalOrDefault(SB_GVKey("EnableDebugLogging"),
+                                  (EnableDebugLogging ? 1.0 : 0.0)) > 0.5);
 
 //
 
@@ -289,29 +307,34 @@ slowMA_handle = iMA(_Symbol, _Period, eff_slowMA, 0, MODE_SMA, PRICE_CLOSE);
         return(INIT_FAILED);
     }
 
-    if(SB_UseZE)
-    {
-ZE_handle = iCustom(_Symbol, _Period, AAI_Ind("AAI_Indicator_ZoneEngine"), eff_zeMinImp, true);
-        if(ZE_handle == INVALID_HANDLE) Print("[SB_WARN] Failed to create ZoneEngine handle.");
-    }
-    if(SB_UseBC)
-    {
-BC_handle = iCustom(_Symbol, _Period, AAI_Ind("AAI_Indicator_BiasCompass"), eff_bcFast, eff_bcSlow);
-        if(BC_handle == INVALID_HANDLE) Print("[SB_WARN] Failed to create BiasCompass handle.");
-    }
-    if(SB_UseSMC)
-    {
-SMC_handle = iCustom(_Symbol,_Period,AAI_Ind("AAI_Indicator_SMC"),
-                     (GlobalOrDefault(SB_GVKey("SMC_UseFVG"), SB_SMC_UseFVG?1.0:0.0) > 0.5),
-                     (GlobalOrDefault(SB_GVKey("SMC_UseOB"),  SB_SMC_UseOB ?1.0:0.0) > 0.5),
-                     (GlobalOrDefault(SB_GVKey("SMC_UseBOS"), SB_SMC_UseBOS?1.0:0.0) > 0.5),
-                     SB_WarmupBars,
-                     eff_fvgMin,
-                     eff_obLb,
-                     eff_bosLb);
+if(eff_useZE)
+{
+   ZE_handle = iCustom(_Symbol, _Period, AAI_Ind("AAI_Indicator_ZoneEngine"), eff_zeMinImp, true);
+   if(ZE_handle == INVALID_HANDLE) Print("[SB_WARN] Failed to create ZoneEngine handle.");
+}
+if(eff_useBC)
+{
+   BC_handle = iCustom(_Symbol, _Period, AAI_Ind("AAI_Indicator_BiasCompass"), eff_bcFast, eff_bcSlow);
+   if(BC_handle == INVALID_HANDLE) Print("[SB_WARN] Failed to create BiasCompass handle.");
+}
+if(eff_useSMC)
+{
+   bool effFVG = (GlobalOrDefault(SB_GVKey("SMC_UseFVG"), SB_SMC_UseFVG ? 1.0 : 0.0) > 0.5);
+   bool effOB  = (GlobalOrDefault(SB_GVKey("SMC_UseOB"),  SB_SMC_UseOB  ? 1.0 : 0.0) > 0.5);
+   bool effBOS = (GlobalOrDefault(SB_GVKey("SMC_UseBOS"), SB_SMC_UseBOS ? 1.0 : 0.0) > 0.5);
 
-        if(SMC_handle == INVALID_HANDLE) Print("[SB_WARN] Failed to create SMC handle.");
-    }
+   SMC_handle = iCustom(_Symbol, _Period, AAI_Ind("AAI_Indicator_SMC"),
+                        effFVG,
+                        effOB,
+                        effBOS,
+                        eff_warmup,     // IMPORTANT: EA-driven warmup
+                        eff_fvgMin,
+                        eff_obLb,
+                        eff_bosLb);
+
+   if(SMC_handle == INVALID_HANDLE) Print("[SB_WARN] Failed to create SMC handle.");
+}
+
     double tmp[1];
 
 if(BC_handle != INVALID_HANDLE)
@@ -321,7 +344,8 @@ if(BC_handle != INVALID_HANDLE)
           ResetLastError();
           int got = CopyBuffer(BC_handle, bi, 1, 1, tmp);
           // <--- WRAPPED
-          if(EnableDebugLogging)
+          if(eff_debug)
+
              PrintFormat("[SB_PROBE] BC buf=%d got=%d val=%.5f err=%d", bi, got, (got>0?tmp[0]:0.0), GetLastError());
        }
     }
@@ -333,7 +357,8 @@ if(BC_handle != INVALID_HANDLE)
           ResetLastError();
           int got = CopyBuffer(ZE_handle, bi, 1, 1, tmp);
           // <--- WRAPPED
-          if(EnableDebugLogging)
+         if(eff_debug)
+
              PrintFormat("[SB_PROBE] ZE buf=%d got=%d val=%.5f err=%d", bi, got, (got>0?tmp[0]:0.0), GetLastError());
        }
     }
@@ -344,7 +369,8 @@ if(BC_handle != INVALID_HANDLE)
           ResetLastError();
           int got = CopyBuffer(SMC_handle, bi, 1, 1, tmp);
           // <--- WRAPPED
-          if(EnableDebugLogging)
+        if(eff_debug)
+
              PrintFormat("[SB_PROBE] SMC buf=%d got=%d val=%.5f err=%d", bi, got, (got>0?tmp[0]:0.0), GetLastError());
        }
     }
@@ -378,7 +404,16 @@ int OnCalculate(const int rates_total,
                 const long &volume[],
                 const int &spread[])
 {
-int eff_warmup = (int)GlobalOrDefault(SB_GVKey("WarmupBars"), (double)SB_WarmupBars);
+
+// --- Effective config (EA -> SB via GlobalVariables) ---
+int  eff_warmup = (int)GlobalOrDefault(SB_GVKey("WarmupBars"), (double)SB_WarmupBars);
+
+bool eff_useZE  = (GlobalOrDefault(SB_GVKey("UseZE"),  (SB_UseZE  ? 1.0 : 0.0)) > 0.5);
+bool eff_useBC  = (GlobalOrDefault(SB_GVKey("UseBC"),  (SB_UseBC  ? 1.0 : 0.0)) > 0.5);
+bool eff_useSMC = (GlobalOrDefault(SB_GVKey("UseSMC"), (SB_UseSMC ? 1.0 : 0.0)) > 0.5);
+
+bool eff_debug  = (GlobalOrDefault(SB_GVKey("EnableDebugLogging"),
+                                  (EnableDebugLogging ? 1.0 : 0.0)) > 0.5);
 
 if(rates_total < eff_warmup)
     {
@@ -419,6 +454,7 @@ double wsmc = GlobalOrDefault(SB_GVKey("W_SMC"),         InpSB_W_SMC);
 double cpen = GlobalOrDefault(SB_GVKey("ConflictPenalty"), InpSB_ConflictPenalty);
 
 
+
 int    eff_baseConf   = (int)GlobalOrDefault(SB_GVKey("BaseConf"), (double)SB_BaseConf);
 double eff_eliteBoost =      GlobalOrDefault(SB_GVKey("EliteBoost"), (double)Inp_SB_EliteBoost);
 
@@ -448,35 +484,35 @@ for(int i = start_bar; i >= 1; i--)
         }
 
 // --- 2. Read Raw Data from Foundational Indicators (with diagnostics) ---
-        if(SB_UseZE && ZE_handle != INVALID_HANDLE)
+        if(eff_useZE && ZE_handle != INVALID_HANDLE)
         {
            double v[1];
            ResetLastError();
            int got = CopyBuffer(ZE_handle, 0, i, 1, v);
            if(got <= 0) {
               // <--- WRAPPED Option A
-              if(EnableDebugLogging)
+              if(eff_debug)
                  PrintFormat("[SB_DBG] ZE CopyBuffer fail i=%d err=%d", i, GetLastError());
            } else {
               rawZEStrength = v[0];
            }
         }
 
-        if(SB_UseBC && BC_handle != INVALID_HANDLE)
+        if(eff_useBC && BC_handle != INVALID_HANDLE)
         {
            double v[1];
            ResetLastError();
            int got = CopyBuffer(BC_handle, 0, i, 1, v);
            if(got <= 0) {
               // <--- WRAPPED Option A
-              if(EnableDebugLogging)
+              if(eff_debug)
                  PrintFormat("[SB_DBG] BC CopyBuffer fail i=%d err=%d", i, GetLastError());
            } else {
               rawBCBias = v[0];
            }
         }
 
-        if(SB_UseSMC && SMC_handle != INVALID_HANDLE)
+        if(eff_useSMC && SMC_handle != INVALID_HANDLE)
         {
            double v[1];
 
@@ -484,7 +520,7 @@ for(int i = start_bar; i >= 1; i--)
            int got0 = CopyBuffer(SMC_handle, 0, i, 1, v);
            if(got0 <= 0) {
               // <--- WRAPPED Option A
-              if(EnableDebugLogging)
+              if(eff_debug)
                  PrintFormat("[SB_DBG] SMC buf0(signal) CopyBuffer fail i=%d err=%d", i, GetLastError());
            } else {
               rawSMCSignal = v[0];
@@ -494,7 +530,7 @@ for(int i = start_bar; i >= 1; i--)
            int got1 = CopyBuffer(SMC_handle, 1, i, 1, v);
            if(got1 <= 0) {
               // <--- WRAPPED Option A
-              if(EnableDebugLogging)
+              if(eff_debug)
                  PrintFormat("[SB_DBG] SMC buf1(conf) CopyBuffer fail i=%d err=%d", i, GetLastError());
            } else {
               rawSMCConfidence = v[0];
@@ -506,7 +542,7 @@ for(int i = start_bar; i >= 1; i--)
    if(finalSignal != 0.0)
         {
             // STRATEGY 1: SMC Precision (Highest Priority)
-            if(SB_UseSMC && rawSMCSignal != 0 && rawSMCSignal == finalSignal)
+            if(eff_useSMC && rawSMCSignal != 0 && rawSMCSignal == finalSignal)
             {
                 // If SMC signal is active, we try to grab the specific level
                 // (Assuming your SMC indicator outputs the level in a buffer, or we approximate)
@@ -548,7 +584,7 @@ if(model == 1) // Geometric Model
    logsum += wb * MathLog(p_base);
 
    // BC
-   if(SB_UseBC && MathAbs(rawBCBias) > 1e-6)
+   if(eff_useBC && MathAbs(rawBCBias) > 1e-6)
    {
       double bc_dir = rawBCBias * finalSignal; // aligned positive, conflict negative
       bc_dir = MathMax(-1.0, MathMin(1.0, bc_dir));
@@ -559,7 +595,7 @@ if(model == 1) // Geometric Model
    }
 
    // ZE
-   if(SB_UseZE && rawZEStrength > 0.0)
+if(eff_useZE && rawZEStrength >= eff_minZone)
    {
       double p_ze = 0.45 + 0.05 * MathMin(10.0, rawZEStrength); // strength 4–10 → ~0.65–0.95
       p_ze = MathMax(eps, MathMin(1.0, p_ze));
@@ -568,7 +604,7 @@ if(model == 1) // Geometric Model
    }
 
    // SMC
-   if(SB_UseSMC && rawSMCSignal != 0.0)
+   if(eff_useSMC && rawSMCSignal != 0.0)
    {
       double smc01 = 0.6 + 0.04 * MathMin(10.0, rawSMCConfidence);
       smc01 = MathMax(eps, MathMin(1.0, smc01));
@@ -602,18 +638,18 @@ else // Additive Model
    bool conflict = false;
 
    // ZE adds confidence only if strong enough
-   if(SB_UseZE && rawZEStrength >= SB_MinZoneStrength)
+if(eff_useZE && rawZEStrength >= eff_minZone)
       finalConfidence += eff_bZE;
 
    // BC adds if aligned, flags conflict otherwise
-   if(SB_UseBC && MathAbs(rawBCBias) > 1e-6)
+   if(eff_useBC && MathAbs(rawBCBias) > 1e-6)
    {
       if(rawBCBias * finalSignal > 0.0) finalConfidence += eff_bBC;
       else conflict = true;
    }
 
    // SMC adds if aligned, flags conflict otherwise
-   if(SB_UseSMC && rawSMCSignal != 0.0)
+   if(eff_useSMC && rawSMCSignal != 0.0)
    {
       if(rawSMCSignal * finalSignal > 0.0) finalConfidence += eff_bSMC;
       else conflict = true;
@@ -676,7 +712,7 @@ if(c > cmax) cmax = c;
 static datetime last_log = 0;
 datetime t = iTime(_Symbol, _Period, 1);
 
-if(EnableDebugLogging && t != last_log)
+if(eff_debug && t != last_log)
 {
    PrintFormat("[DBG_SB_FINAL] eff_model=%d t=%s conf=%.2f ze=%.2f smc_s=%.0f smc_c=%.2f bc=%.2f",
                model, TimeToString(t),
