@@ -2232,11 +2232,12 @@ string AAI_TfLabelFromMinutes(const int tf_minutes)
 
 string SB_GVPrefix_EA()
 {
-   // IMPORTANT: must match SignalBrain's TF label when SignalTimeframe == PERIOD_CURRENT
-   return StringFormat("AAI/SB/%I64d/%s/%s/",
-                       (long)AccountInfoInteger(ACCOUNT_LOGIN),
-                       _Symbol,
-                       CurrentTfLabel());
+return StringFormat("AAI/SB/%I64d/%s/%s/%I64d/",
+                    AccountInfoInteger(ACCOUNT_LOGIN),
+                    _Symbol,
+                    CurrentTfLabel(),
+                    (long)ChartID());
+;
 }
 
 string SB_GVKey_EA(const string leaf) { return SB_GVPrefix_EA() + leaf; }
@@ -3241,9 +3242,10 @@ PrintFormat("[EA_SB_SENTINEL] BaseConf=%d EliteBoost=%.2f BC_MA=%d/%d ZE_MinImpu
            SB_SMC_OB_Lookback, SB_SMC_BOS_Lookback,
            SB_SMC_FVG_MinPips);
            
-sb_handle = iCustom(_Symbol,
-                    (ENUM_TIMEFRAMES)SignalTimeframe,
-                    AAI_Ind("AAI_Indicator_SignalBrain"));
+sb_handle = iCustom(_Symbol, (ENUM_TIMEFRAMES)SignalTimeframe,
+                    AAI_Ind("AAI_Indicator_SignalBrain"),
+                    (long)MagicNumber);
+
                     
 PrintFormat("[PB_INPUTS] RegimeMinConfDelta MID_CHAOS=%d  RegimeRiskMult MID_CHAOS=%.2f",
             InpPB_RegimeMinConfDelta_MID_CHAOS,
