@@ -371,10 +371,21 @@ inline string AAI_Ind(const string name)
 }
 string SB_GVPrefix()
 {
-   return StringFormat("AAI/SB/%I64d/%s/%s/",
+   // IMPORTANT: must match SignalBrain's keying.
+   // Use MagicNumber as the instance id so the EA and iCustom-created indicator share the same globals.
+   // (ChartID may be different/0 for indicators created headlessly.)
+   long inst = (long)MagicNumber;
+   if(inst == 0) inst = (long)ChartID();
+
+   ENUM_TIMEFRAMES eff_tf = (SignalTimeframe == PERIOD_CURRENT)
+                              ? (ENUM_TIMEFRAMES)_Period
+                              : (ENUM_TIMEFRAMES)SignalTimeframe;
+
+   return StringFormat("AAI/SB/%I64d/%s/%s/%I64d/",
                        (long)AccountInfoInteger(ACCOUNT_LOGIN),
                        _Symbol,
-                       TfLabel((ENUM_TIMEFRAMES)SignalTimeframe));
+                       TfLabel(eff_tf),
+                       inst);
 }
 string SB_GVKey(const string leaf) { return SB_GVPrefix() + leaf; }
 
@@ -2230,17 +2241,8 @@ string AAI_TfLabelFromMinutes(const int tf_minutes)
    return IntegerToString(tf_minutes);
 }
 
-string SB_GVPrefix_EA()
-{
-return StringFormat("AAI/SB/%I64d/%s/%s/%I64d/",
-                    AccountInfoInteger(ACCOUNT_LOGIN),
-                    _Symbol,
-                    CurrentTfLabel(),
-                    (long)ChartID());
-;
-}
-
-string SB_GVKey_EA(const string leaf) { return SB_GVPrefix_EA() + leaf; }
+// NOTE: SB_GVPrefix()/SB_GVKey() (defined near the top) are the single source of truth
+// for SignalBrain globals. Do not introduce parallel *_EA variants; it breaks wiring.
 
 //+------------------------------------------------------------------+
 //| Push SignalBrain config into globals for the SB indicator        |
@@ -2255,50 +2257,50 @@ string legacy[] = {
 for(int i=0;i<ArraySize(legacy);i++)
    if(GlobalVariableCheck(legacy[i])) GlobalVariableDel(legacy[i]);
 
-GlobalVariableSet(SB_GVKey_EA("ConfModel"),        (double)InpSB_ConfModel);
-GlobalVariableSet(SB_GVKey_EA("W_BASE"),           InpSB_W_BASE);
-GlobalVariableSet(SB_GVKey_EA("W_BC"),             InpSB_W_BC);
-GlobalVariableSet(SB_GVKey_EA("W_ZE"),             InpSB_W_ZE);
-GlobalVariableSet(SB_GVKey_EA("W_SMC"),            InpSB_W_SMC);
-GlobalVariableSet(SB_GVKey_EA("ConflictPenalty"),  InpSB_ConflictPenalty);
+GlobalVariableSet(SB_GVKey("ConfModel"),        (double)InpSB_ConfModel);
+GlobalVariableSet(SB_GVKey("W_BASE"),           InpSB_W_BASE);
+GlobalVariableSet(SB_GVKey("W_BC"),             InpSB_W_BC);
+GlobalVariableSet(SB_GVKey("W_ZE"),             InpSB_W_ZE);
+GlobalVariableSet(SB_GVKey("W_SMC"),            InpSB_W_SMC);
+GlobalVariableSet(SB_GVKey("ConflictPenalty"),  InpSB_ConflictPenalty);
 
 // --- Core SB toggles (EA is the source of truth) ---
-GlobalVariableSet(SB_GVKey_EA("UseZE"),  SB_UseZE  ? 1.0 : 0.0);
-GlobalVariableSet(SB_GVKey_EA("UseBC"),  SB_UseBC  ? 1.0 : 0.0);
-GlobalVariableSet(SB_GVKey_EA("UseSMC"), SB_UseSMC ? 1.0 : 0.0);
+GlobalVariableSet(SB_GVKey("UseZE"),  SB_UseZE  ? 1.0 : 0.0);
+GlobalVariableSet(SB_GVKey("UseBC"),  SB_UseBC  ? 1.0 : 0.0);
+GlobalVariableSet(SB_GVKey("UseSMC"), SB_UseSMC ? 1.0 : 0.0);
 
 // --- SB diagnostics / test flags ---
-GlobalVariableSet(SB_GVKey_EA("EnableDebugLogging"), SB_EnableDebug ? 1.0 : 0.0);
-GlobalVariableSet(SB_GVKey_EA("SafeTest"),           SB_SafeTest   ? 1.0 : 0.0);
+GlobalVariableSet(SB_GVKey("EnableDebugLogging"), SB_EnableDebug ? 1.0 : 0.0);
+GlobalVariableSet(SB_GVKey("SafeTest"),           SB_SafeTest   ? 1.0 : 0.0);
 
 
 
 //
-GlobalVariableSet(SB_GVKey_EA("BaseConf"), (double)SB_BaseConf);
-GlobalVariableSet(SB_GVKey_EA("EliteBoost"), Inp_SB_EliteBoost);
+GlobalVariableSet(SB_GVKey("BaseConf"), (double)SB_BaseConf);
+GlobalVariableSet(SB_GVKey("EliteBoost"), Inp_SB_EliteBoost);
 
-GlobalVariableSet(SB_GVKey_EA("BC_FastMA"), (double)SB_BC_FastMA);
-GlobalVariableSet(SB_GVKey_EA("BC_SlowMA"), (double)SB_BC_SlowMA);
+GlobalVariableSet(SB_GVKey("BC_FastMA"), (double)SB_BC_FastMA);
+GlobalVariableSet(SB_GVKey("BC_SlowMA"), (double)SB_BC_SlowMA);
 
-GlobalVariableSet(SB_GVKey_EA("ZE_MinImpulseMovePips"), SB_ZE_MinImpulseMovePips);
+GlobalVariableSet(SB_GVKey("ZE_MinImpulseMovePips"), SB_ZE_MinImpulseMovePips);
 
-GlobalVariableSet(SB_GVKey_EA("SMC_UseFVG"), SB_SMC_UseFVG ? 1.0 : 0.0);
-GlobalVariableSet(SB_GVKey_EA("SMC_UseOB"),  SB_SMC_UseOB  ? 1.0 : 0.0);
-GlobalVariableSet(SB_GVKey_EA("SMC_UseBOS"), SB_SMC_UseBOS ? 1.0 : 0.0);
+GlobalVariableSet(SB_GVKey("SMC_UseFVG"), SB_SMC_UseFVG ? 1.0 : 0.0);
+GlobalVariableSet(SB_GVKey("SMC_UseOB"),  SB_SMC_UseOB  ? 1.0 : 0.0);
+GlobalVariableSet(SB_GVKey("SMC_UseBOS"), SB_SMC_UseBOS ? 1.0 : 0.0);
 
-GlobalVariableSet(SB_GVKey_EA("SMC_FVG_MinPips"), SB_SMC_FVG_MinPips);
-GlobalVariableSet(SB_GVKey_EA("SMC_OB_Lookback"), (double)SB_SMC_OB_Lookback);
-GlobalVariableSet(SB_GVKey_EA("SMC_BOS_Lookback"), (double)SB_SMC_BOS_Lookback);
+GlobalVariableSet(SB_GVKey("SMC_FVG_MinPips"), SB_SMC_FVG_MinPips);
+GlobalVariableSet(SB_GVKey("SMC_OB_Lookback"), (double)SB_SMC_OB_Lookback);
+GlobalVariableSet(SB_GVKey("SMC_BOS_Lookback"), (double)SB_SMC_BOS_Lookback);
 
-GlobalVariableSet(SB_GVKey_EA("FastMA"), (double)SB_FastMA);
-GlobalVariableSet(SB_GVKey_EA("SlowMA"), (double)SB_SlowMA);
+GlobalVariableSet(SB_GVKey("FastMA"), (double)SB_FastMA);
+GlobalVariableSet(SB_GVKey("SlowMA"), (double)SB_SlowMA);
 
-GlobalVariableSet(SB_GVKey_EA("WarmupBars"), (double)SB_WarmupBars);
+GlobalVariableSet(SB_GVKey("WarmupBars"), (double)SB_WarmupBars);
 
-GlobalVariableSet(SB_GVKey_EA("MinZoneStrength"), (double)SB_MinZoneStrength);
-GlobalVariableSet(SB_GVKey_EA("Bonus_ZE"), (double)SB_Bonus_ZE);
-GlobalVariableSet(SB_GVKey_EA("Bonus_BC"), (double)SB_Bonus_BC);
-GlobalVariableSet(SB_GVKey_EA("Bonus_SMC"), (double)SB_Bonus_SMC);
+GlobalVariableSet(SB_GVKey("MinZoneStrength"), (double)SB_MinZoneStrength);
+GlobalVariableSet(SB_GVKey("Bonus_ZE"), (double)SB_Bonus_ZE);
+GlobalVariableSet(SB_GVKey("Bonus_BC"), (double)SB_Bonus_BC);
+GlobalVariableSet(SB_GVKey("Bonus_SMC"), (double)SB_Bonus_SMC);
 
 
    PrintFormat("[SB_GLOBALS] model=%d W_BASE=%.2f W_BC=%.2f W_ZE=%.2f W_SMC=%.2f cpen=%.2f",
@@ -3234,6 +3236,22 @@ PrintFormat("[EA_SB_INPUTS] base=%.1f bze=%.1f bbc=%.1f bsmc=%.1f model=%d wb=%.
 
 
 AAI_PushSignalBrainGlobals();
+
+// --- Wiring visibility: show the exact SignalBrain namespace + instance identity ---
+{
+   ENUM_TIMEFRAMES eff_tf = (SignalTimeframe == PERIOD_CURRENT)
+                              ? (ENUM_TIMEFRAMES)_Period
+                              : (ENUM_TIMEFRAMES)SignalTimeframe;
+
+   PrintFormat("[SB_WIRE_EA] prefix=%s magic=%I64d chart=%I64d sym=%s tf=%s iCustom=%s",
+               SB_GVPrefix(),
+               (long)MagicNumber,
+               (long)ChartID(),
+               _Symbol,
+               TfLabel(eff_tf),
+               AAI_Ind("AAI_Indicator_SignalBrain"));
+}
+
 
 PrintFormat("[EA_SB_SENTINEL] BaseConf=%d EliteBoost=%.2f BC_MA=%d/%d ZE_MinImpulse=%.2f OB_lb=%d BOS_lb=%d FVGmin=%.2f",
             SB_BaseConf, Inp_SB_EliteBoost,
