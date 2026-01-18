@@ -18,7 +18,7 @@
 
 // --- Buffer 0: Final Signal ---
 #property indicator_type1   DRAW_NONE
-#property indicator_label1  "FinalSignal"
+#property indicator_label1  "SignalSignedEntry"
 double FinalSignalBuffer[];
 
 // --- Buffer 1: Final Confidence ---
@@ -53,6 +53,10 @@ double RawBCBiasBuffer[];
 
 
 //--- Indicator Inputs ---
+// IMPORTANT (EA wiring): the EA passes MagicNumber as the *first* iCustom parameter.
+// Keep InpMagicNumber as the first input so iCustom(_,...,MagicNumber) maps correctly.
+input long InpMagicNumber = 0;
+
 input group "--- Core Settings ---"
 input bool SB_SafeTest        = false;
 input bool SB_UseZE           = true;
@@ -63,7 +67,6 @@ input int  SB_FastMA          = 5;
 input int  SB_SlowMA          = 12;
 input int  SB_MinZoneStrength = 4;
 input bool EnableDebugLogging = false;
-input long InpMagicNumber = 0;
 
 
 //--- Confluence Bonuses (for Additive model) ---
@@ -155,11 +158,15 @@ string SB_TfLabelFromEnum(ENUM_TIMEFRAMES tf)
 
 string SB_GVPrefix()
 {
-return StringFormat("AAI/SB/%I64d/%s/%s/%I64d/",
-                    AccountInfoInteger(ACCOUNT_LOGIN),
-                    _Symbol,
-                    SB_TfLabelFromEnum(_Period),
-                    (long)ChartID());
+   // Instance id MUST match the EA's keying, even when the indicator is created via iCustom
+   // (where ChartID() may differ / be 0). The EA passes MagicNumber into InpMagicNumber.
+   long inst = (InpMagicNumber != 0 ? InpMagicNumber : (long)ChartID());
+
+   return StringFormat("AAI/SB/%I64d/%s/%s/%I64d/",
+                       (long)AccountInfoInteger(ACCOUNT_LOGIN),
+                       _Symbol,
+                       SB_TfLabelFromEnum(_Period),
+                       inst);
 }
 
 
@@ -233,6 +240,15 @@ bool eff_debug  = (GlobalOrDefault(SB_GVKey("EnableDebugLogging"),
                MQLInfoString(MQL_PROGRAM_PATH),
                TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS),
                (int)InpSB_ConfModel, InpSB_W_BASE, InpSB_W_BC, InpSB_W_ZE, InpSB_W_SMC, InpSB_ConflictPenalty);
+
+// --- Wiring visibility: show which namespace this SignalBrain instance reads ---
+PrintFormat("[SB_WIRE_SB] prefix=%s inp_magic=%I64d chart=%I64d sym=%s tf=%s",
+            SB_GVPrefix(),
+            InpMagicNumber,
+            (long)ChartID(),
+            _Symbol,
+            SB_TfLabelFromEnum(_Period));
+
 
    PrintFormat("[SB_MODEL] gv_model=%.0f eff_model=%d wb=%.2f wbc=%.2f wze=%.2f wsmc=%.2f cpen=%.2f",
 GlobalVariableCheck(SB_GVKey("ConfModel")) ? GlobalVariableGet(SB_GVKey("ConfModel")) : -1.0,
@@ -697,10 +713,12 @@ if(c > cmax) cmax = c;
 
         // --- 4. Write ALL buffers ---
 // Encode Price into Signal: 
-        // Positive Price = BUY LIMIT (e.g. 1.0500)
-        // Negative Price = SELL LIMIT (e.g. -1.0500)
-        if(finalSignal == 0.0) FinalSignalBuffer[i] = 0.0;
-        else FinalSignalBuffer[i] = (finalSignal > 0) ? smartEntryPrice : -smartEntryPrice;
+// Buffer0 contract:
+// - SIGN = direction (+buy, -sell)
+// - MAGNITUDE = suggested entry price (EA currently uses SIGN only for market orders)
+if(finalSignal == 0.0) FinalSignalBuffer[i] = 0.0;
+else FinalSignalBuffer[i] = (finalSignal > 0) ? smartEntryPrice : -smartEntryPrice;
+
 FinalConfidenceBuffer[i] = MathMax(0.0, MathMin(100.0, finalConfidence));
         ReasonCodeBuffer[i]       = (finalSignal != 0.0) ? (double)reasonCode : (double)REASON_NONE;
         RawZEStrengthBuffer[i]    = rawZEStrength;
