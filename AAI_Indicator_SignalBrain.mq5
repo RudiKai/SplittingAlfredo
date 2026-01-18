@@ -63,6 +63,8 @@ input int  SB_FastMA          = 5;
 input int  SB_SlowMA          = 12;
 input int  SB_MinZoneStrength = 4;
 input bool EnableDebugLogging = false;
+input long InpMagicNumber = 0;
+
 
 //--- Confluence Bonuses (for Additive model) ---
 input group "--- Additive Model Bonuses ---"
@@ -153,10 +155,11 @@ string SB_TfLabelFromEnum(ENUM_TIMEFRAMES tf)
 
 string SB_GVPrefix()
 {
-   return StringFormat("AAI/SB/%I64d/%s/%s/",
-                       (long)AccountInfoInteger(ACCOUNT_LOGIN),
-                       _Symbol,
-                       SB_TfLabelFromEnum((ENUM_TIMEFRAMES)_Period));
+return StringFormat("AAI/SB/%I64d/%s/%s/%I64d/",
+                    AccountInfoInteger(ACCOUNT_LOGIN),
+                    _Symbol,
+                    SB_TfLabelFromEnum(_Period),
+                    (long)ChartID());
 }
 
 
@@ -404,6 +407,11 @@ int OnCalculate(const int rates_total,
                 const long &volume[],
                 const int &spread[])
 {
+ArraySetAsSeries(time,  true);
+ArraySetAsSeries(open,  true);
+ArraySetAsSeries(high,  true);
+ArraySetAsSeries(low,   true);
+ArraySetAsSeries(close, true);
 
 // --- Effective config (EA -> SB via GlobalVariables) ---
 int  eff_warmup = (int)GlobalOrDefault(SB_GVKey("WarmupBars"), (double)SB_WarmupBars);
@@ -674,7 +682,7 @@ finalConfidence = MathMax(0.0, MathMin(100.0, finalConfidence));
 
 }
 
-double c = fmax(0.0, fmin(100.0, finalConfidence));
+double c = MathMax(0.0, MathMin(100.0, finalConfidence));
 int bin = (int)MathFloor(c / 10.0);
 if(bin < 0) bin = 0;
 if(bin > 10) bin = 10;
@@ -693,7 +701,7 @@ if(c > cmax) cmax = c;
         // Negative Price = SELL LIMIT (e.g. -1.0500)
         if(finalSignal == 0.0) FinalSignalBuffer[i] = 0.0;
         else FinalSignalBuffer[i] = (finalSignal > 0) ? smartEntryPrice : -smartEntryPrice;
-        FinalConfidenceBuffer[i]  = fmax(0.0, fmin(100.0, finalConfidence));
+FinalConfidenceBuffer[i] = MathMax(0.0, MathMin(100.0, finalConfidence));
         ReasonCodeBuffer[i]       = (finalSignal != 0.0) ? (double)reasonCode : (double)REASON_NONE;
         RawZEStrengthBuffer[i]    = rawZEStrength;
         RawSMCSignalBuffer[i]     = rawSMCSignal;
