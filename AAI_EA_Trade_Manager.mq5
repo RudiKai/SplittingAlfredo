@@ -1,4 +1,4 @@
-#include "inc/AAI_Metrics.mqh"
+#include <AlfredAI/inc/AAI_Metrics.mqh>
 //+------------------------------------------------------------------+
 //| AAI_EA_Trade_Manager.mq5                                         |       
 //|                                       v5.12 - Telemetry v2       |
@@ -14,7 +14,7 @@
 #include <Trade\Trade.mqh>
 #include <Arrays\ArrayObj.mqh>
 #include <Arrays\ArrayLong.mqh>
-#include "AAI/AAI_Include_News.mqh"
+#include <AlfredAI/AAI_Include_News.mqh>
 
 // --- Forward Declarations (needed because used before defined) ---
 void   PHW_LogFailure(const uint retcode);
@@ -408,8 +408,8 @@ enum ENUM_OSR_FillMode { OSR_FILL_IOC, OSR_FILL_FOK, OSR_FILL_DEFAULT };
 
 // --- T006: HUD Object Name ---
 const string HUD_OBJECT_NAME = "AAI_HUD";
-#include "inc/AAI_Utils.mqh"
-#include "inc/AAI_PipMath.mqh"
+#include <AlfredAI/inc/AAI_Utils.mqh>
+#include <AlfredAI/inc/AAI_PipMath.mqh>
 
 
 
@@ -1981,7 +1981,7 @@ void PT_ClearGV(const ulong ticket)
 static int g_ttl_secs;
 static int g_pref_exit_secs;
 
-#include "inc/AAI_HybridState.mqh"
+#include <AlfredAI/inc/AAI_HybridState.mqh>
 
 double OnTester()
 {
@@ -2097,7 +2097,7 @@ inline bool ReadATRFastPts(double &out_pts)
 }
 
 
-#include "inc/AAI_Journal.mqh"
+#include <AlfredAI/inc/AAI_Journal.mqh>
 double VR_BpsLastBar(){
   double a[1]; if(CopyBuffer(g_hATR_VR,0,1,1,a)!=1 || a[0]<=0) return 0.0;
   MqlRates r[]; if(CopyRates(_Symbol,(ENUM_TIMEFRAMES)SignalTimeframe,1,1,r)!=1 || r[0].close<=0) return 0.0;
@@ -2550,7 +2550,7 @@ string JsonGetStr(const string json, const string key)
 
 
 
-#include "inc/AAI_SessionTime.mqh"
+#include <AlfredAI/inc/AAI_SessionTime.mqh>
 
 
 
@@ -2587,7 +2587,7 @@ ulong StringToULongHash(string s)
     return hash;
 }
 
-#include "inc/AAI_RiskCurve.mqh"
+#include <AlfredAI/inc/AAI_RiskCurve.mqh>
 
 //+------------------------------------------------------------------+
 //| Calculate Lot Size                                               |
@@ -2675,9 +2675,9 @@ double CalculateLotSize(const int confidence, const double sl_distance_price)
   
   
 
-#include "inc/AAI_RiskGuard.mqh"
+#include <AlfredAI/inc/AAI_RiskGuard.mqh>
 
-#include "inc/AAI_ExecAnalytics.mqh"
+#include <AlfredAI/inc/AAI_ExecAnalytics.mqh>
 
 //+------------------------------------------------------------------+
 //| T_AZ: Helper to check if we are inside the session window        |
@@ -2810,7 +2810,7 @@ void FailsafeExitChecks()
 }
 
 //+------------------------------------------------------------------+
-#include "inc/AAI_OSR.mqh"
+#include <AlfredAI/inc/AAI_OSR.mqh>
 //+------------------------------------------------------------------+
 //| Friday close: force-flat after configured hour                   |
 //+------------------------------------------------------------------+
@@ -3027,7 +3027,7 @@ for(int j = ArraySize(tickets) - 1; j >= 0; --j)
 }
 
 
-#include "inc/AAI_Harmonizer.mqh"
+#include <AlfredAI/inc/AAI_Harmonizer.mqh>
 
 
 // ============================================================================
@@ -3106,12 +3106,12 @@ bool VAPT_IsHotStableFlag()
 
 
 
-#include "inc/AAI_Trailing.mqh"
+#include <AlfredAI/inc/AAI_Trailing.mqh>
 
 
-#include "inc/AAI_Partials.mqh"
+#include <AlfredAI/inc/AAI_Partials.mqh>
 
-#include "inc/AAI_StatePersistence.mqh"
+#include <AlfredAI/inc/AAI_StatePersistence.mqh>
 
 
 
@@ -3737,8 +3737,49 @@ void OnTimer()
 }
 
 
-#include "inc/AAI_SLCluster.mqh"
+#include <AlfredAI/inc/AAI_SLCluster.mqh>
 
+
+// --- Helpers: position-id aware close detection (RiskGuard/Journaling) ---
+// NOTE: In MT5 hedging, a position has both a POSITION_TICKET (open position handle)
+// and a POSITION_IDENTIFIER (stable id used to group deals).
+// Deals expose DEAL_POSITION_ID, which matches POSITION_IDENTIFIER.
+
+bool AAI_IsPositionIdentifierOpen(const ulong pos_id)
+{
+   const int total = PositionsTotal();
+   for(int i=0; i<total; ++i)
+   {
+      const ulong t = (ulong)PositionGetTicket(i);
+      if(t == 0) continue;
+      if(!PositionSelectByTicket(t)) continue;
+      if((ulong)PositionGetInteger(POSITION_IDENTIFIER) == pos_id)
+         return true;
+   }
+   return false;
+}
+
+double AAI_ClosedPositionProfit(const ulong pos_id)
+{
+   // Sum net P/L (profit + swap + commission) for all deals belonging to this position id.
+   // Uses HistorySelectByPosition so it is robust across partial closes.
+   if(!HistorySelectByPosition(pos_id))
+      return 0.0;
+
+   double total = 0.0;
+   const int n = HistoryDealsTotal();
+   for(int i=0; i<n; ++i)
+   {
+      const ulong deal = (ulong)HistoryDealGetTicket(i);
+      if(deal == 0) continue;
+      if((ulong)HistoryDealGetInteger(deal, DEAL_POSITION_ID) != pos_id)
+         continue;
+      total += HistoryDealGetDouble(deal, DEAL_PROFIT)
+             + HistoryDealGetDouble(deal, DEAL_SWAP)
+             + HistoryDealGetDouble(deal, DEAL_COMMISSION);
+   }
+   return total;
+}
 
 
 //+------------------------------------------------------------------+
@@ -3778,60 +3819,84 @@ if(pos_ticket != 0 && !PositionSelectByTicket(pos_ticket))
         }
     }
    
-      // --- T030: Update Risk Guard state on closed deals ---
-      if((ulong)HistoryDealGetInteger(trans.deal, DEAL_MAGIC) == MagicNumber &&
-         HistoryDealGetInteger(trans.deal, DEAL_ENTRY) == DEAL_ENTRY_OUT)
+      // --- T030/T035: Exit processing (RiskGuard counters + trailing cleanup) ---
+//  - Daily realized P/L and SL-hit counts are updated per closing DEAL (supports partials).
+//  - Consecutive-loss streak and journaling are updated once per fully closed POSITION (prevents double-count).
+if(trans.type == TRADE_TRANSACTION_DEAL_ADD && HistoryDealSelect(trans.deal))
+{
+   const ulong deal  = (ulong)trans.deal;
+   const long  magic = (long)HistoryDealGetInteger(deal, DEAL_MAGIC);
+   const long  entry = (long)HistoryDealGetInteger(deal, DEAL_ENTRY);
+
+   if((ulong)magic == (ulong)MagicNumber && (entry == DEAL_ENTRY_OUT || entry == DEAL_ENTRY_OUT_BY))
+   {
+      // (1) Daily realized P/L + SL hits (deal-granularity)
+      const datetime deal_time = (datetime)HistoryDealGetInteger(deal, DEAL_TIME);
+      if(deal_time >= g_rg_day_anchor_time)
       {
-        datetime deal_time = (datetime)HistoryDealGetInteger(trans.deal, DEAL_TIME);
-        if(deal_time >= g_rg_day_anchor_time)
-        {
-        double profit = HistoryDealGetDouble(trans.deal, DEAL_PROFIT) +
-                        HistoryDealGetDouble(trans.deal, DEAL_SWAP) +
-                        HistoryDealGetDouble(trans.deal, DEAL_COMMISSION);
+         const double pl = HistoryDealGetDouble(deal, DEAL_PROFIT)
+                         + HistoryDealGetDouble(deal, DEAL_SWAP)
+                         + HistoryDealGetDouble(deal, DEAL_COMMISSION);
+         g_rg_day_realized_pl += pl;
 
-        g_rg_day_realized_pl += profit;
-        if(profit < 0) g_rg_consec_losses++; else g_rg_consec_losses = 0;
-        
+         if((ENUM_DEAL_REASON)HistoryDealGetInteger(deal, DEAL_REASON) == DEAL_REASON_SL)
+            g_rg_day_sl_hits++;
+      }
 
-        if((ENUM_DEAL_REASON)HistoryDealGetInteger(trans.deal, DEAL_REASON) == DEAL_REASON_SL)
-        {
-          g_rg_day_sl_hits++;
-        }
-        }
-        // T035: Delete Trailing State on full close (per-position)
-        ulong pos_ticket = (ulong)HistoryDealGetInteger(trans.deal, DEAL_POSITION_ID);
-if(pos_ticket == 0) pos_ticket = (ulong)trans.position; // fallback if broker/build doesn't populate DEAL_POSITION_ID
+      // (2) Per-position outcome (streak + journal once per fully closed position id)
+      const ulong pos_id = (ulong)HistoryDealGetInteger(deal, DEAL_POSITION_ID);
+      if(pos_id != 0)
+      {
+         const bool still_open = AAI_IsPositionIdentifierOpen(pos_id);
 
-        if(pos_ticket != 0 && !PositionSelectByTicket(pos_ticket))
-        {
-           const string _sym = HistoryDealGetString(trans.deal, DEAL_SYMBOL);
-           for(int i = g_trl_states.Total() - 1; i >= 0; i--)
-           {
-              TRL_State *s = (TRL_State*)g_trl_states.At(i);
-              if(s && s.symbol == _sym && s.ticket == pos_ticket)
-              {
-                 g_trl_states.Delete(i);
-                 delete s;
-              }
-           }
-        }
-        else if(pos_ticket == 0)
-        {
-           // Legacy fallback: ticket missing, delete by symbol
-           const string _sym = HistoryDealGetString(trans.deal, DEAL_SYMBOL);
-           for(int i = g_trl_states.Total() - 1; i >= 0; i--)
-           {
-              TRL_State *s = (TRL_State*)g_trl_states.At(i);
-              if(s && s.symbol == _sym)
-              {
-                 g_trl_states.Delete(i);
-                 delete s;
-              }
-           }
-        }
+         if(!still_open && !IsPositionLogged(pos_id))
+         {
+            const double pos_pl = AAI_ClosedPositionProfit(pos_id);
+
+            if(pos_pl > 0.0)
+            {
+               g_wins++;
+               g_rg_consec_losses = 0;
+
+               // Optional: clear an active RG block immediately after a win (will re-trip next bar if thresholds still hit).
+               if(InpRG_ResetOnWin && g_rg_block_active)
+               {
+                  g_rg_block_active = false;
+                  g_rg_block_until  = 0;
+                  Print("[RG_RESET] reason=win_after_trip");
+               }
+            }
+            else if(pos_pl < 0.0)
+            {
+               g_losses++;
+               g_rg_consec_losses++;
+            }
+            // Breakeven: no change to streak by default
+
+            JournalClosedPosition(pos_id);
+            AddToLoggedList(pos_id);
+         }
+      }
+
+      // (3) T035: Delete trailing state on full close (uses POSITION_TICKET from transaction)
+      const ulong pos_ticket = (ulong)trans.position;
+      if(pos_ticket != 0 && !PositionSelectByTicket(pos_ticket))
+      {
+         const string _sym = HistoryDealGetString(deal, DEAL_SYMBOL);
+         for(int i = g_trl_states.Total() - 1; i >= 0; i--)
+         {
+            TRL_State *s = (TRL_State*)g_trl_states.At(i);
+            if(s && s.symbol == _sym && s.ticket == pos_ticket)
+            {
+               g_trl_states.Delete(i);
+               delete s;
+            }
+         }
+      }
+   }
 }
 
-      // EXEC on entry (print once)
+// EXEC on entry (print once)
 if(HistoryDealGetInteger(trans.deal, DEAL_ENTRY) == DEAL_ENTRY_IN)
   {
    if(AAI_last_in_deal != trans.deal)
@@ -3981,62 +4046,8 @@ if(HistoryDealGetInteger(trans.deal, DEAL_ENTRY) == DEAL_ENTRY_IN)
         }
       }
 
-if(trans.type == TRADE_TRANSACTION_DEAL_ADD && HistoryDealSelect(trans.deal))
-    {
-// replace the next block with this:
-if((ulong)HistoryDealGetInteger(trans.deal, DEAL_MAGIC) == MagicNumber &&
-   HistoryDealGetInteger(trans.deal, DEAL_ENTRY) == DEAL_ENTRY_OUT)
-{
-    ulong pos_id = (ulong)HistoryDealGetInteger(trans.deal, DEAL_POSITION_ID);
 
-    // only once per position close
-    if(!IsPositionLogged(pos_id))
-    {
-        // (A) get P&L of the *closing deal* (ok if you don't use partials)
-        double profit = HistoryDealGetDouble(trans.deal, DEAL_PROFIT)
-                      + HistoryDealGetDouble(trans.deal, DEAL_SWAP)
-                      + HistoryDealGetDouble(trans.deal, DEAL_COMMISSION);
-
-        // If you later enable partials, prefer computing full position P&L:
-        // profit = ClosedPositionProfit(pos_id);   // optional helper below
-
-        if(profit > 0.0)
-        {
-            g_wins++;
-            g_rg_consec_losses = 0;
-            if(InpRG_ResetOnWin)
-            {
-                g_rg_block_active = false;
-                g_rg_block_until  = 0;
-                Print("[RG_RESET] reason=win_after_trip");
-            }
-        }
-        else if(profit < 0.0)
-        {
-            g_losses++;
-            g_rg_consec_losses++;
-
-            // hard trip when streak >= MaxConsecLosses
-            if(InpRG_Mode == RG_REQUIRED && g_rg_consec_losses >= InpRG_MaxConsecLosses)
-            {
-                g_rg_block_active = true;
-                if(InpRG_BlockHoursAfterTrip > 0)
-                    g_rg_block_until = TimeCurrent() + InpRG_BlockHoursAfterTrip * 3600;
-                PrintFormat("[RG_TRIP] streak=%d block_until=%s",
-                            g_rg_consec_losses,
-                            g_rg_block_until>0 ? TimeToString(g_rg_block_until) : "EOD/next reset");
-                                // optional: start counting the next streak from scratch
-    g_rg_consec_losses = 0;
-            }
-        }
-
-        // your existing one-time journal + dedupe
-        JournalClosedPosition(pos_id);
-        AddToLoggedList(pos_id);
-    }
-}
-}
-    if (CooldownAfterSLBars > 0 && trans.type == TRADE_TRANSACTION_DEAL_ADD && HistoryDealSelect(trans.deal))
+if (CooldownAfterSLBars > 0 && trans.type == TRADE_TRANSACTION_DEAL_ADD && HistoryDealSelect(trans.deal))
     {
         if ((ulong)HistoryDealGetInteger(trans.deal, DEAL_MAGIC) == MagicNumber &&
             HistoryDealGetInteger(trans.deal, DEAL_ENTRY) == DEAL_ENTRY_OUT &&
@@ -4268,7 +4279,7 @@ void AAI_RegimeStats_OnExit(const ulong pos_id, const double net)
   
   
   
-#include "inc/AAI_AdaptiveSpread.mqh"
+#include <AlfredAI/inc/AAI_AdaptiveSpread.mqh>
 
 
 
@@ -4357,7 +4368,7 @@ AAI_UpdateSignalWeights(); // Signal Weights
 
 
 
-#include "inc/AAI_StructureProximity.mqh"
+#include <AlfredAI/inc/AAI_StructureProximity.mqh>
 
 
 
@@ -4383,15 +4394,15 @@ double AS_MedianOfHistory()
 
 
 
-#include "inc/AAI_IMC.mqh"
+#include <AlfredAI/inc/AAI_IMC.mqh>
 
 
-#include "inc/AAI_PHW.mqh"
+#include <AlfredAI/inc/AAI_PHW.mqh>
 
 
 
-#include "inc/AAI_Gates.mqh"
+#include <AlfredAI/inc/AAI_Gates.mqh>
 
-#include "inc/AAI_EvaluateEntry.mqh"
-#include "inc/AAI_PositionMgmt.mqh"
-#include "inc/AAI_HUD_Regime.mqh"
+#include <AlfredAI/inc/AAI_EvaluateEntry.mqh>
+#include <AlfredAI/inc/AAI_PositionMgmt.mqh>
+#include <AlfredAI/inc/AAI_HUD_Regime.mqh>
