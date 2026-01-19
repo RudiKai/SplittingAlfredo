@@ -9,7 +9,7 @@
 #property strict
 #property version "2.8" // As Coder, incremented version for this change
 
-#include <AAI/AAI_PipMath.mqh>
+#include <AlfredAI/inc/AAI_PipMath.mqh>
 
 // === BEGIN Spec: Headless + single buffer for Strength ===
 #property indicator_plots   1 // Canonical Strength at plot 0
