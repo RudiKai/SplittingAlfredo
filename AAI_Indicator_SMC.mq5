@@ -9,7 +9,7 @@
 #property indicator_chart_window
 #property version "1.0"
 
-#include <AAI/AAI_PipMath.mqh>
+#include <AlfredAI/inc/AAI_PipMath.mqh>
 
 
 // --- Indicator Buffers & Plots (Headless Export) ---
