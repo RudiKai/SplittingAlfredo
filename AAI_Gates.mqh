@@ -150,7 +150,12 @@ bool GateRiskGuard(double &conf_io, string &reason_id)
 
       g_rg_block_active = true;
       if(InpRG_BlockUntil==RG_BLOCK_FOR_HOURS)
-         g_rg_block_until = TimeCurrent() + InpRG_BlockHours*3600;
+      {
+         int hours = InpRG_BlockHours;
+         if(hit_seq && InpRG_BlockHoursAfterTrip > 0)
+            hours = InpRG_BlockHoursAfterTrip;
+         g_rg_block_until = TimeCurrent() + (datetime)(hours * 3600);
+      }
       if(g_stamp_risk != g_sb.closed_bar_time) { g_blk_risk++; g_stamp_risk = g_sb.closed_bar_time; }
       return false; // hard block
     } else {
